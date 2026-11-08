@@ -34,16 +34,18 @@ body{
     radial-gradient(circle at 50% 40%,#12101d 0%,#05040a 70%);
 }
 #app{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+#player{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:100%;}
+#player:fullscreen{width:100%!important;height:100%!important;max-width:none;background:#000;justify-content:center;}
 #stage{
   position:relative;background:#000;overflow:hidden;
   box-shadow:0 0 0 2px #000,0 0 0 4px #2b2740,0 0 0 6px #000,0 18px 60px rgba(0,0,0,.9);
 }
 #screen{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;}
 
-/* ---------- subtitles ---------- */
+/* ---------- subtitles: below the picture, never over the animation ---------- */
 #subs{
-  position:absolute;left:0;right:0;bottom:calc(52px + 2.2%);
-  display:flex;justify-content:center;align-items:flex-end;
+  position:relative;width:100%;height:var(--caption-space,80px);flex:0 0 auto;
+  display:flex;justify-content:center;align-items:center;
   pointer-events:none;z-index:6;padding:0 4%;
   transition:opacity .18s linear;
 }
@@ -161,9 +163,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--acce
 #hint{position:absolute;left:12px;top:12px;z-index:9;font-size:8px;color:#7c7699;letter-spacing:1px;
   background:rgba(10,8,18,.72);border:2px solid #2b2740;padding:6px 8px;opacity:0;transition:opacity .3s;pointer-events:none}
 #hint.show{opacity:1}
-/* Recording view: once Play is clicked, only the animation remains. */
+/* Recording view: keep the animation and lower subtitles free of player chrome. */
 #stage.recording #controls,
-#stage.recording #subs,
 #stage.recording #hint,
 #stage.recording #settings{display:none!important;pointer-events:none!important}
 #stage.recording #title{visibility:hidden;opacity:0;pointer-events:none;transition:none}
@@ -171,16 +172,14 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--acce
   #controls{height:46px;gap:6px;padding:0 8px}
   .ctl{width:30px;height:26px}
   #time{font-size:7.5px;min-width:64px}
-  #subs{bottom:calc(46px + 2%)}
 }
 </style>
 </head>
 <body>
 <div id="app">
+  <div id="player">
   <div id="stage">
     <canvas id="screen" width="480" height="270"></canvas>
-
-    <div id="subs" class="hidden"><div class="box" id="subText"></div></div>
 
     <div id="hint"></div>
 
@@ -203,7 +202,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--acce
       <button class="ctl on" id="btnSound" title="Sound (M)" aria-label="Toggle sound">
         <svg viewBox="0 0 16 16"><path d="M2 6h3l4-4v12L5 10H2zM11 5c1.5 1 1.5 5 0 6v-2c.6-.7.6-1.3 0-2zM13 3c2.5 2 2.5 8 0 10v-2c1.4-1.4 1.4-4.6 0-6z"/></svg>
       </button>
-      <button class="ctl off" id="btnCc" title="Captions (C)" aria-label="Toggle captions">
+      <button class="ctl on" id="btnCc" title="Captions (C)" aria-label="Toggle captions">
         <svg viewBox="0 0 16 16"><path d="M1 3h14v10H1zM3 5v6h10V5zm1.5 1.5h3v1h-2v1h2v1h-3zm4.5 0h3v1h-2v1h2v1h-3z"/></svg>
       </button>
       <button class="ctl" id="btnSet" title="Settings" aria-label="Settings">
@@ -228,7 +227,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--acce
       <div class="srow">
         <label>SUBTITLES</label>
         <div class="seg" id="segCc">
-          <button data-v="1">ON</button><button data-v="0" class="sel">OFF</button>
+          <button data-v="1" class="sel">ON</button><button data-v="0">OFF</button>
         </div>
       </div>
       <div class="srow">
@@ -252,7 +251,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--acce
       <div id="titleRow">
         <button class="btn" id="btnSet2">SETTINGS</button>
         <button class="btn on" id="btnSound2">SOUND: ON</button>
-        <button class="btn off" id="btnCc2">CAPTIONS: OFF</button>
+        <button class="btn on" id="btnCc2">CAPTIONS: ON</button>
       </div>
       <div class="foot">
         <span class="badge">SPACE</span> play/pause
@@ -263,6 +262,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--acce
         <br><span id="voiceNote"></span>
       </div>
     </div>
+  </div>
+  <div id="subs" class="hidden" aria-label="Subtitles"><div class="box" id="subText"></div></div>
   </div>
 </div>
 
@@ -2484,6 +2485,7 @@ NARRSYS.init();
    SECTION 19 — UI CONTROLS
    ============================================================ */
 const stage=document.getElementById('stage');
+const player=document.getElementById('player');
 const titleEl=document.getElementById('title');
 const ctrlEl=document.getElementById('controls');
 const subsEl=document.getElementById('subs');
@@ -2494,14 +2496,19 @@ const timeEl=document.getElementById('time');
 const trackEl=document.getElementById('track');
 const hintEl=document.getElementById('hint');
 const settingsEl=document.getElementById('settings');
-let captionsOn=false, soundOn=true, mode='title', playing=false, lastTs=0;
+let captionsOn=true, soundOn=true, mode='title', playing=false, lastTs=0;
 
 function fmt(s){s=Math.max(0,s);const m=Math.floor(s/60),ss=Math.floor(s%60);return m+':'+(ss<10?'0':'')+ss;}
 function layout(){
   const vw=window.innerWidth,vh=window.innerHeight;
+  // Reserve a black caption strip beneath the 16:9 picture, including on wide screens.
+  const captionSpace=Math.max(64,Math.round(vh*0.14));
   let sw=vw,sh=vw*9/16;
-  if(sh>vh){sh=vh;sw=vh*16/9;}
+  const pictureHeight=Math.max(1,vh-captionSpace-12);
+  if(sh>pictureHeight){sh=pictureHeight;sw=sh*16/9;}
   sw=Math.floor(sw);sh=Math.floor(sh);
+  player.style.width=sw+'px';
+  player.style.setProperty('--caption-space',captionSpace+'px');
   stage.style.width=sw+'px';stage.style.height=sh+'px';
   stage.style.setProperty('--fs',Math.max(7,Math.round(sw/480*8.4))+'px');
 }
@@ -2519,7 +2526,7 @@ function setMode(m){
     stage.classList.add('recording');
     titleEl.classList.add('gone');
     ctrlEl.classList.add('hide');
-    subsEl.classList.add('hidden');
+    subsEl.classList.toggle('hidden',!captionsOn);
     settingsEl.classList.remove('open');
     hintEl.classList.remove('show');
     if(document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -2591,14 +2598,14 @@ function toggleCc(){
   document.getElementById('btnCc').classList.toggle('on',captionsOn);
   document.getElementById('btnCc').classList.toggle('off',!captionsOn);
   subsEl.style.display=captionsOn?'flex':'none';
-  const b=document.getElementById('btnCc2');b.textContent='CAPTIONS: '+(captionsOn?'ON':'OFF');b.classList.toggle('on',captionsOn);
+  const b=document.getElementById('btnCc2');b.textContent='CAPTIONS: '+(captionsOn?'ON':'OFF');b.classList.toggle('on',captionsOn);b.classList.toggle('off',!captionsOn);
 }
 document.getElementById('btnSound').addEventListener('click',toggleSound);
 document.getElementById('btnSound2').addEventListener('click',toggleSound);
 document.getElementById('btnCc').addEventListener('click',toggleCc);
 document.getElementById('btnCc2').addEventListener('click',toggleCc);
 document.getElementById('btnFull').addEventListener('click',()=>{
-  if(!document.fullscreenElement){ (stage.requestFullscreen||stage.webkitRequestFullscreen||function(){}).call(stage); }
+  if(!document.fullscreenElement){ (player.requestFullscreen||player.webkitRequestFullscreen||function(){}).call(player); }
   else document.exitFullscreen&&document.exitFullscreen();
 });
 document.addEventListener('fullscreenchange',()=>setTimeout(layout,60));
