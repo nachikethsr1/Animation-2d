@@ -483,8 +483,8 @@
     </button>
 
     <div id="scrubber-wrap">
-      <input type="range" id="timeline-scrubber" min="0" max="54" step="0.05" value="0">
-      <div class="time-readout"><span id="time-current">00:00</span> / <span id="time-total">00:54</span></div>
+      <input type="range" id="timeline-scrubber" min="0" max="47.30" step="0.02" value="0">
+      <div class="time-readout"><span id="time-current">00:00</span> / <span id="time-total">00:47</span></div>
     </div>
 
     <button class="ctrl-btn active" id="btn-voice" title="Toggle Narration Voice">
@@ -511,145 +511,119 @@
   // ============================================================================
   // 1. MASTER TIMELINE, EXACT NARRATION & SCENE DEFINITIONS
   // ============================================================================
-  const TOTAL_DURATION = 54.0;
+  let TOTAL_DURATION = 47.30;
   const W = 1080;
   const H = 1920;
 
-  // Exact Narration Segments from Section 2 (Zero alterations)
+  // Exact Narration Segments — 100% contiguous, zero silent gaps, synced to studio voiceover
   const NARRATION_SEGMENTS = [
     {
       id: 'n1',
-      start: 0.25,
-      end: 4.75,
+      start: 0.00,
+      end: 2.89,
       text: "Why is Ryomen Sukuna called the King of Curses?",
-      html: 'Why is Ryomen Sukuna called the <span class="kw-crimson">King of Curses</span>?',
-      rate: 0.96,
-      pitch: 0.78
+      html: 'Why is Ryomen Sukuna called the <span class="kw-crimson">King of Curses</span>?'
     },
     {
       id: 'n2',
-      start: 5.15,
-      end: 11.75,
+      start: 2.89,
+      end: 8.69,
       text: "First, there's Dismantle — a deadly slashing technique that can cut through targets from a distance.",
-      html: 'First, there\'s <span class="kw-crimson">DISMANTLE</span> — a deadly slashing technique that can cut through targets from a distance.',
-      rate: 1.02,
-      pitch: 0.80
+      html: 'First, there\'s <span class="kw-crimson">DISMANTLE</span> — a deadly slashing technique that can cut through targets from a distance.'
     },
     {
       id: 'n3',
-      start: 12.15,
-      end: 18.75,
+      start: 8.69,
+      end: 14.61,
       text: "Then comes Cleave — a slash that adjusts its power according to the target's toughness and cursed energy.",
-      html: 'Then comes <span class="kw-crimson">CLEAVE</span> — a slash that adjusts its power according to the target\'s toughness and cursed energy.',
-      rate: 1.02,
-      pitch: 0.80
+      html: 'Then comes <span class="kw-crimson">CLEAVE</span> — a slash that adjusts its power according to the target\'s toughness and cursed energy.'
     },
     {
       id: 'n4',
-      start: 19.15,
-      end: 20.90,
+      start: 14.61,
+      end: 15.79,
       text: "But that's not all.",
-      html: 'But that\'s not all.',
-      rate: 0.96,
-      pitch: 0.76
+      html: 'But that\'s not all.'
     },
     {
       id: 'n5',
-      start: 21.05,
-      end: 26.80,
+      start: 15.79,
+      end: 23.39,
       text: "Sukuna can also unleash Furnace, a devastating fire-based technique capable of creating enormous flames.",
-      html: 'Sukuna can also unleash <span class="kw-fire">FURNACE</span>, a devastating fire-based technique capable of creating enormous flames.',
-      rate: 1.02,
-      pitch: 0.80
+      html: 'Sukuna can also unleash <span class="kw-fire">FURNACE</span>, a devastating fire-based technique capable of creating enormous flames.'
     },
     {
       id: 'n6',
-      start: 27.20,
-      end: 30.15,
+      start: 23.39,
+      end: 25.91,
       text: "And now, his most terrifying ability...",
-      html: 'And now, his most terrifying ability...',
-      rate: 0.92,
-      pitch: 0.74
+      html: 'And now, his most terrifying ability...'
     },
     {
       id: 'n7',
-      start: 30.35,
-      end: 32.55,
+      start: 25.91,
+      end: 27.13,
       text: "Malevolent Shrine!",
-      html: '<span class="kw-crimson">MALEVOLENT SHRINE!</span>',
-      rate: 0.88,
-      pitch: 0.70
+      html: '<span class="kw-crimson">MALEVOLENT SHRINE!</span>'
     },
     {
       id: 'n8',
-      start: 32.80,
-      end: 37.90,
+      start: 27.13,
+      end: 31.99,
       text: "Unlike most Domain Expansions, Sukuna's domain doesn't create a closed barrier.",
-      html: 'Unlike most Domain Expansions, Sukuna\'s domain doesn\'t create a closed barrier.',
-      rate: 1.03,
-      pitch: 0.80
+      html: 'Unlike most Domain Expansions, Sukuna\'s domain doesn\'t create a closed barrier.'
     },
     {
       id: 'n9',
-      start: 38.05,
-      end: 43.75,
+      start: 31.99,
+      end: 38.00,
       text: "Instead, it manifests in the real world, unleashing continuous slashes across its effective range.",
-      html: 'Instead, it manifests in the real world, unleashing continuous slashes across its effective range.',
-      rate: 1.03,
-      pitch: 0.80
+      html: 'Instead, it manifests in the real world, unleashing continuous slashes across its effective range.'
     },
     {
       id: 'n10',
-      start: 44.15,
-      end: 45.85,
+      start: 38.00,
+      end: 39.31,
       text: "And the scariest part?",
-      html: 'And the scariest part?',
-      rate: 0.95,
-      pitch: 0.76
+      html: 'And the scariest part?'
     },
     {
       id: 'n11',
-      start: 46.00,
-      end: 49.45,
+      start: 39.31,
+      end: 42.63,
       text: "Sukuna can control his techniques with terrifying precision.",
-      html: 'Sukuna can control his techniques with <span class="kw-crimson">terrifying precision</span>.',
-      rate: 0.98,
-      pitch: 0.78
+      html: 'Sukuna can control his techniques with <span class="kw-crimson">terrifying precision</span>.'
     },
     {
       id: 'n12',
-      start: 49.65,
-      end: 51.75,
+      start: 42.63,
+      end: 44.99,
       text: "This isn't just a powerful curse...",
-      html: 'This isn\'t just a powerful curse...',
-      rate: 0.94,
-      pitch: 0.74
+      html: 'This isn\'t just a powerful curse...'
     },
     {
       id: 'n13',
-      start: 51.90,
-      end: 54.00,
+      start: 44.99,
+      end: 47.40,
       text: "This is the King of Curses!",
-      html: 'This is the <span class="kw-crimson">KING OF CURSES!</span>',
-      rate: 0.90,
-      pitch: 0.70
+      html: 'This is the <span class="kw-crimson">KING OF CURSES!</span>'
     }
   ];
 
-  // HUD Overlays Schedule
+  // HUD Overlays Schedule (Synced to exact spoken technique reveals)
   const HUD_EVENTS = [
-    { start: 5.2, end: 11.8, tag: "INNATE TECHNIQUE", title: "01 — DISMANTLE", sub: "Long-range slashing technique" },
-    { start: 12.2, end: 18.8, tag: "INNATE TECHNIQUE", title: "02 — CLEAVE", sub: "Adapts to the target's toughness and cursed energy" },
-    { start: 19.3, end: 26.8, tag: "FIRE TECHNIQUE — FUGA", title: "03 — FURNACE", sub: "Sukuna's fire-based technique" },
-    { start: 30.3, end: 43.7, tag: "DOMAIN EXPANSION", title: "MALEVOLENT SHRINE", sub: "An open-barrier Domain Expansion" }
+    { start: 2.90, end: 8.66, tag: "INNATE TECHNIQUE", title: "01 — DISMANTLE", sub: "Long-range slashing technique" },
+    { start: 8.70, end: 14.58, tag: "INNATE TECHNIQUE", title: "02 — CLEAVE", sub: "Adapts to the target's toughness and cursed energy" },
+    { start: 15.80, end: 23.36, tag: "FIRE TECHNIQUE — FUGA", title: "03 — FURNACE", sub: "Sukuna's fire-based technique" },
+    { start: 25.91, end: 37.97, tag: "DOMAIN EXPANSION", title: "MALEVOLENT SHRINE", sub: "An open-barrier Domain Expansion" }
   ];
 
   // Center Dramatic Titles
   const CENTER_CARDS = [
-    { start: 0.6, end: 2.5, top: "JUJUTSU KAISEN ANALYSIS", main: "RYOMEN SUKUNA" },
-    { start: 2.6, end: 4.8, top: "RYOMEN SUKUNA", main: "THE KING OF CURSES" },
-    { start: 30.3, end: 32.8, top: "DOMAIN EXPANSION", main: "MALEVOLENT SHRINE" },
-    { start: 51.2, end: 54.0, top: "THE KING OF CURSES", main: "RYOMEN SUKUNA" }
+    { start: 0.05, end: 1.45, top: "JUJUTSU KAISEN ANALYSIS", main: "RYOMEN SUKUNA" },
+    { start: 1.45, end: 2.86, top: "RYOMEN SUKUNA", main: "THE KING OF CURSES" },
+    { start: 25.91, end: 27.13, top: "DOMAIN EXPANSION", main: "MALEVOLENT SHRINE" },
+    { start: 44.99, end: 47.30, top: "THE KING OF CURSES", main: "RYOMEN SUKUNA" }
   ];
 
   // ============================================================================
@@ -677,154 +651,229 @@
   }
 
   // ============================================================================
-  // 3. PROCEDURAL WEB AUDIO ENGINE + SPEECH SYNTHESIS NARRATION
+  // 3. STUDIO VOICEOVER ENGINE + PROCEDURAL WEB AUDIO SFX DIRECTOR
   // ============================================================================
   class AnimeAudioDirector {
-    constructor() {
+    constructor(onDurationReady) {
       this.ctx = null;
-      this.masterGain = null;
+      this.masterGain = null; // SFX & dark ambient score gain
+      this.voiceGain = null;  // Studio narration voiceover gain
       this.musicMuted = false;
       this.voiceMuted = false;
-      this.lastTriggeredSfxTime = -1;
-      this.currentSpeechId = null;
-      this.preferredVoice = null;
-      this.sfxEvents = this.buildSfxSchedule();
-      this.initVoices();
-    }
 
-    initVoices() {
-      if (!('speechSynthesis' in window)) return;
-      const pickVoice = () => {
-        const voices = window.speechSynthesis.getVoices();
-        if (!voices || !voices.length) return;
-        const enVoices = voices.filter(v => /^en(-|_)/i.test(v.lang));
-        const pool = enVoices.length ? enVoices : voices;
-        // Prefer deep male / natural voices
-        const scored = pool.map(v => {
-          let s = 0;
-          const n = v.name.toLowerCase();
-          if (n.includes('male') || n.includes('david') || n.includes('daniel') || n.includes('mark') || n.includes('guy') || n.includes('christopher') || n.includes('eric') || n.includes('ryan')) s += 5;
-          if (n.includes('natural') || n.includes('online') || n.includes('google')) s += 3;
-          if (v.default) s += 1;
-          return { v, s };
-        }).sort((a, b) => b.s - a.s);
-        this.preferredVoice = scored[0].v;
-      };
-      pickVoice();
-      window.speechSynthesis.onvoiceschanged = pickVoice;
+      // Sample-accurate Web Audio studio narration state
+      this.voiceBuffer = null;
+      this.voiceSource = null;
+      this.voiceActive = false;
+      this.voiceLoading = false;
+      this.voiceStartCtxTime = 0;
+      this.voiceStartOffset = 0;
+      this.playToken = 0;
+      this.onDurationReady = onDurationReady;
+
+      // Preload studio narration MP3 immediately on page open
+      this.rawMp3Promise = fetch('audio/narration.mp3')
+        .then(res => {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.arrayBuffer();
+        })
+        .catch(() => null);
+
+      // HTMLAudioElement fallback for local file:// viewing where fetch() is blocked
+      this.fallbackAudio = new Audio('audio/narration.mp3');
+      this.fallbackAudio.preload = 'auto';
+      this.usingFallbackAudio = false;
+
+      this.sfxEvents = this.buildSfxSchedule();
     }
 
     ensureContext() {
       if (!this.ctx) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        this.ctx = new AudioCtx();
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = this.musicMuted ? 0 : 0.75;
-        this.masterGain.connect(this.ctx.destination);
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = this.musicMuted ? 0 : 0.38;
+          this.masterGain.connect(this.ctx.destination);
+
+          this.voiceGain = this.ctx.createGain();
+          this.voiceGain.gain.value = this.voiceMuted ? 0 : 1.0;
+          this.voiceGain.connect(this.ctx.destination);
+        }
       }
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume();
       }
     }
 
+    async prepareVoiceBuffer() {
+      if (this.voiceBuffer || this.usingFallbackAudio) return;
+      this.ensureContext();
+      if (!this.ctx) {
+        this.usingFallbackAudio = true;
+        return;
+      }
+      const rawBuf = await this.rawMp3Promise;
+      if (!rawBuf) {
+        this.usingFallbackAudio = true;
+        return;
+      }
+      try {
+        this.voiceBuffer = await this.ctx.decodeAudioData(rawBuf.slice(0));
+        if (this.voiceBuffer && this.onDurationReady) {
+          this.onDurationReady(this.voiceBuffer.duration);
+        }
+      } catch (e) {
+        this.usingFallbackAudio = true;
+      }
+    }
+
+    stopVoiceSource() {
+      if (this.voiceSource) {
+        this.voiceSource.onended = null;
+        try { this.voiceSource.stop(); } catch (e) {}
+        try { this.voiceSource.disconnect(); } catch (e) {}
+        this.voiceSource = null;
+      }
+      this.voiceActive = false;
+      if (this.fallbackAudio && !this.fallbackAudio.paused) {
+        this.fallbackAudio.pause();
+      }
+    }
+
+    async startVoiceAt(offsetSec) {
+      const token = ++this.playToken;
+      this.stopVoiceSource();
+      this.ensureContext();
+      this.voiceLoading = true;
+
+      await this.prepareVoiceBuffer();
+      if (token !== this.playToken) return;
+      this.voiceLoading = false;
+
+      if (this.ctx && this.ctx.state === 'suspended') {
+        await this.ctx.resume();
+        if (token !== this.playToken) return;
+      }
+
+      if (this.voiceBuffer && this.ctx) {
+        const clampedOffset = clamp(offsetSec, 0, Math.max(0, this.voiceBuffer.duration - 0.01));
+        if (offsetSec >= this.voiceBuffer.duration - 0.02) return;
+
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.voiceBuffer;
+        src.connect(this.voiceGain);
+        this.voiceStartCtxTime = this.ctx.currentTime;
+        this.voiceStartOffset = clampedOffset;
+        this.voiceSource = src;
+        this.voiceActive = true;
+        src.onended = () => {
+          if (this.voiceSource === src) {
+            this.voiceActive = false;
+            this.voiceSource = null;
+          }
+        };
+        src.start(0, clampedOffset);
+      } else if (this.usingFallbackAudio && this.fallbackAudio) {
+        try {
+          this.fallbackAudio.muted = this.voiceMuted;
+          this.fallbackAudio.currentTime = clamp(offsetSec, 0, TOTAL_DURATION);
+          await this.fallbackAudio.play();
+        } catch (e) {}
+      }
+    }
+
+    getSyncedTime(fallbackTime, dt) {
+      if (this.voiceLoading) {
+        return fallbackTime;
+      }
+      if (this.voiceActive && this.ctx && this.ctx.state === 'running') {
+        return this.voiceStartOffset + Math.max(0, this.ctx.currentTime - this.voiceStartCtxTime);
+      }
+      if (this.usingFallbackAudio && this.fallbackAudio && !this.fallbackAudio.paused) {
+        return this.fallbackAudio.currentTime;
+      }
+      return fallbackTime + dt;
+    }
+
     setMusicMuted(muted) {
       this.musicMuted = muted;
       if (this.masterGain && this.ctx) {
-        this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.75, this.ctx.currentTime, 0.05);
+        this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.38, this.ctx.currentTime, 0.04);
       }
     }
 
     setVoiceMuted(muted) {
       this.voiceMuted = muted;
-      if (muted && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        this.currentSpeechId = null;
+      if (this.voiceGain && this.ctx) {
+        this.voiceGain.gain.setTargetAtTime(muted ? 0 : 1.0, this.ctx.currentTime, 0.03);
+      }
+      if (this.fallbackAudio) {
+        this.fallbackAudio.muted = muted;
       }
     }
 
     stopAll() {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      this.currentSpeechId = null;
-    }
-
-    syncNarration(time, isPlaying) {
-      if (!isPlaying || this.voiceMuted || !('speechSynthesis' in window)) return;
-      const activeSeg = NARRATION_SEGMENTS.find(s => time >= s.start && time < s.end - 0.15);
-      if (activeSeg) {
-        if (this.currentSpeechId !== activeSeg.id) {
-          this.currentSpeechId = activeSeg.id;
-          window.speechSynthesis.cancel();
-          const utter = new SpeechSynthesisUtterance(activeSeg.text);
-          if (this.preferredVoice) utter.voice = this.preferredVoice;
-          utter.rate = activeSeg.rate || 1.0;
-          utter.pitch = activeSeg.pitch || 0.78;
-          utter.volume = 1.0;
-          window.speechSynthesis.speak(utter);
-        }
-      } else {
-        this.currentSpeechId = null;
-      }
+      this.playToken++;
+      this.voiceLoading = false;
+      this.stopVoiceSource();
     }
 
     buildSfxSchedule() {
       const events = [
-        // Scene 1: Dark drone & curse awakening
-        { t: 0.1, type: 'drone', freq: 55, dur: 4.8 },
-        { t: 1.9, type: 'cursePulse', intensity: 0.7 },
-        { t: 3.0, type: 'taiko', freq: 65 },
+        // Scene 1 (0.00s - 2.89s): Dark drone & curse awakening
+        { t: 0.03, type: 'drone', freq: 55, dur: 2.85 },
+        { t: 1.05, type: 'cursePulse', intensity: 0.7 },
+        { t: 1.75, type: 'taiko', freq: 65 },
 
-        // Scene 2: Dismantle
-        { t: 5.0, type: 'whooshTransition' },
-        { t: 5.3, type: 'drone', freq: 62, dur: 6.4 },
-        { t: 7.1, type: 'fingerSnap' },
-        { t: 7.45, type: 'slashDismantle' },
-        { t: 8.65, type: 'stoneCleaveImpact' },
+        // Scene 2 (2.89s - 8.69s): Dismantle
+        { t: 2.89, type: 'whooshTransition' },
+        { t: 3.05, type: 'drone', freq: 62, dur: 5.55 },
+        { t: 4.75, type: 'fingerSnap' },
+        { t: 5.05, type: 'slashDismantle' },
+        { t: 6.12, type: 'stoneCleaveImpact' },
 
-        // Scene 3: Cleave
-        { t: 12.0, type: 'whooshTransition' },
-        { t: 12.4, type: 'drone', freq: 58, dur: 6.3 },
-        { t: 13.4, type: 'slashDismantle' },
-        { t: 15.2, type: 'cleaveLockOn' },
-        { t: 16.4, type: 'cleaveSpiderweb' },
-        { t: 17.0, type: 'stoneCleaveImpact' },
+        // Scene 3 (8.69s - 14.61s): Cleave
+        { t: 8.69, type: 'whooshTransition' },
+        { t: 8.85, type: 'drone', freq: 58, dur: 5.65 },
+        { t: 9.50, type: 'slashDismantle' },
+        { t: 11.15, type: 'cleaveLockOn' },
+        { t: 12.25, type: 'cleaveSpiderweb' },
+        { t: 13.05, type: 'stoneCleaveImpact' },
 
-        // Scene 4: Furnace
-        { t: 19.0, type: 'whooshTransition' },
-        { t: 19.8, type: 'fireIgnite' },
-        { t: 22.0, type: 'fireCharge' },
-        { t: 24.3, type: 'furnaceBlast' },
+        // Scene 4 (14.61s - 23.39s): Furnace / Fuga
+        { t: 14.61, type: 'whooshTransition' },
+        { t: 15.50, type: 'fireIgnite' },
+        { t: 17.80, type: 'fireCharge' },
+        { t: 20.35, type: 'furnaceBlast' },
 
-        // Scene 5: Malevolent Shrine
-        { t: 27.0, type: 'taiko', freq: 48 },
-        { t: 28.4, type: 'handSealClasp' },
-        { t: 30.4, type: 'shrineBell' },
-        { t: 31.2, type: 'drone', freq: 44, dur: 12.0 },
-        { t: 35.0, type: 'shrineBell' },
+        // Scene 5 (23.39s - 38.00s): Malevolent Shrine
+        { t: 23.39, type: 'taiko', freq: 48 },
+        { t: 24.65, type: 'handSealClasp' },
+        { t: 25.94, type: 'shrineBell' },
+        { t: 26.50, type: 'drone', freq: 44, dur: 11.3 },
+        { t: 31.85, type: 'shrineBell' },
 
-        // Scene 6: Final Reveal
-        { t: 44.0, type: 'whooshTransition' },
-        { t: 44.3, type: 'drone', freq: 50, dur: 9.5 },
-        { t: 46.2, type: 'cursePulse', intensity: 0.8 },
-        { t: 51.8, type: 'taiko', freq: 45 },
-        { t: 51.9, type: 'shrineBell' }
+        // Scene 6 (38.00s - 47.30s): Final Reveal
+        { t: 38.00, type: 'whooshTransition' },
+        { t: 38.20, type: 'drone', freq: 50, dur: 8.9 },
+        { t: 39.40, type: 'cursePulse', intensity: 0.8 },
+        { t: 45.02, type: 'taiko', freq: 45 },
+        { t: 45.06, type: 'shrineBell' }
       ];
 
-      // Add rapid domain slashes during Malevolent Shrine (35.2s - 42.5s)
-      for (let t = 35.2; t <= 42.6; t += 0.32) {
+      // Rapid domain slashes during Malevolent Shrine continuous barrage (31.85s - 37.75s)
+      for (let t = 31.85; t <= 37.75; t += 0.30) {
         events.push({ t, type: 'domainSlash' });
       }
-      // Subtle rhythmic ostinato pulses
-      for (let t = 5.5; t < 26.5; t += 1.0) {
+      // Subtle rhythmic ostinato pulses through technique showcase
+      for (let t = 3.2; t < 23.0; t += 1.0) {
         events.push({ t, type: 'ostinatoTick' });
       }
       return events.sort((a, b) => a.t - b.t);
     }
 
     update(prevTime, currTime, isPlaying) {
-      this.syncNarration(currTime, isPlaying);
       if (!isPlaying || this.musicMuted) return;
       this.ensureContext();
       if (!this.ctx) return;
@@ -2214,17 +2263,17 @@
   }
 
   // ============================================================================
-  // 9. SCENE-BY-SCENE MASTER COMPOSITOR
+  // 9. SCENE-BY-SCENE MASTER COMPOSITOR (SYNCED TO 47.30s ZERO-GAP VOICEOVER)
   // ============================================================================
   function renderMasterFrame(ctx, time) {
     ctx.save();
 
     // Global Screen Shake Calculation (Controlled during impacts only)
     let shakeMag = 0;
-    if (time >= 8.62 && time <= 9.15) shakeMag = 22 * (1 - (time - 8.62) / 0.53); // Dismantle impact
-    else if (time >= 16.85 && time <= 17.55) shakeMag = 28 * (1 - (time - 16.85) / 0.7); // Cleave shatter
-    else if (time >= 24.3 && time <= 26.5) shakeMag = 16; // Furnace inferno roar
-    else if (time >= 35.0 && time <= 42.6) shakeMag = 9; // Malevolent Shrine barrage
+    if (time >= 6.12 && time <= 6.65) shakeMag = 22 * (1 - (time - 6.12) / 0.53); // Dismantle impact
+    else if (time >= 13.05 && time <= 13.75) shakeMag = 28 * (1 - (time - 13.05) / 0.70); // Cleave shatter
+    else if (time >= 20.35 && time <= 23.15) shakeMag = 16; // Furnace inferno roar
+    else if (time >= 31.80 && time <= 37.80) shakeMag = 9; // Malevolent Shrine barrage
 
     if (shakeMag > 0) {
       const sx = (Math.sin(time * 95) + Math.cos(time * 63)) * shakeMag * 0.5;
@@ -2233,11 +2282,11 @@
     }
 
     // ==========================================================================
-    // SCENE 01 — THE KING OF CURSES (0.0s – 5.0s)
+    // SCENE 01 — THE KING OF CURSES (0.00s – 2.89s)
     // ==========================================================================
-    if (time < 5.0) {
-      const t = time / 5.0;
-      // Camera slowly pushes from wide establishing shot (0.82) to medium portrait (1.18)
+    if (time < 2.89) {
+      const t = time / 2.89;
+      // Camera smoothly pushes from wide establishing shot (0.82) to medium portrait (1.18)
       const camZoom = lerp(0.82, 1.18, easeInOutCubic(t));
       const camY = lerp(60, -70, easeInOutCubic(t));
 
@@ -2257,10 +2306,10 @@
         midStructures: '#160b12'
       });
 
-      // Sukuna slowly raises his head, crimson eyes open, subtle sinister smile appears
-      const headRaise = easeInOutCubic(invLerp(0.4, 2.4, time));
-      const eyesOpen = easeOutCubic(invLerp(1.5, 2.3, time));
-      const smileActive = time > 2.45 ? 'sinisterSmile' : 'serious';
+      // Sukuna raises his head, crimson eyes snap open on "Ryomen Sukuna", sinister smile on "King of Curses"
+      const headRaise = easeInOutCubic(invLerp(0.10, 1.45, time));
+      const eyesOpen = easeOutCubic(invLerp(0.85, 1.45, time));
+      const smileActive = time > 1.65 ? 'sinisterSmile' : 'serious';
 
       drawSukunaCharacter(ctx, {
         x: W * 0.5,
@@ -2278,16 +2327,15 @@
     }
 
     // ==========================================================================
-    // SCENE 02 — DISMANTLE (5.0s – 12.0s)
+    // SCENE 02 — DISMANTLE (2.89s – 8.69s)
     // ==========================================================================
-    else if (time >= 5.0 && time < 12.0) {
-      const localT = time - 5.0;
+    else if (time >= 2.89 && time < 8.69) {
       drawSkyAndClouds(ctx, time, '#09090f', '#181622', '#2b1620', 'rgba(30, 28, 42, 0.5)');
 
-      // Shot 2A (5.0s - 8.6s): Side-angle showing Sukuna on left & distant target on right
-      // Shot 2B (8.6s - 12.0s): Impact zoom & wide shot of cleanly sliced target
-      const isImpactCut = time >= 8.6;
-      const impactBump = isImpactCut ? Math.max(0, 1 - (time - 8.6) * 3.5) * 0.16 : 0;
+      // Shot 2A (2.89s - 6.10s): Side-angle showing Sukuna on left & distant target on right
+      // Shot 2B (6.10s - 8.69s): Impact zoom & wide shot of cleanly sliced target
+      const isImpactCut = time >= 6.10;
+      const impactBump = isImpactCut ? Math.max(0, 1 - (time - 6.10) * 3.5) * 0.16 : 0;
       const camZoom = (isImpactCut ? 0.96 : 1.04) + impactBump;
       const camX = isImpactCut ? 90 : -55;
 
@@ -2306,11 +2354,11 @@
       });
 
       // Distant Stone Pillar Target on Right
-      const splitProg = invLerp(8.62, 10.6, time);
+      const splitProg = invLerp(6.12, 8.15, time);
       drawSliceableMonolithTarget(ctx, 760, 1360, 240, 620, splitProg, false, 0, time);
 
       // Sukuna on Left performing finger-flick anticipation & Dismantle release
-      const handAct = invLerp(6.6, 8.2, time);
+      const handAct = invLerp(3.80, 5.35, time);
       drawSukunaCharacter(ctx, {
         x: 270,
         y: 1260,
@@ -2319,22 +2367,22 @@
         headPitch: 0,
         headTurn: 0.45,
         eyeOpen: 1.0,
-        expression: time > 8.7 ? 'arrogantSmirk' : 'serious',
+        expression: time > 6.20 ? 'arrogantSmirk' : 'serious',
         pose: 'dismantlePoint',
         actionProgress: handAct,
         auraIntensity: 0.45
       });
 
       // Fast, precise razor slash traveling from Sukuna across environment to target
-      const slashTravel = invLerp(7.42, 8.68, time);
+      const slashTravel = invLerp(5.05, 6.18, time);
       drawAnimeSlashArc(ctx, 320, 1040, 1020, 880, 14, '#ffffff', 'rgba(255, 25, 65, 0.9)', slashTravel);
 
       ctx.restore();
 
-      // High-Contrast Anime Impact Frame at moment of connection (8.62s - 8.72s)
-      if (time >= 8.62 && time <= 8.73) {
+      // High-Contrast Anime Impact Frame at moment of connection (6.12s - 6.23s)
+      if (time >= 6.12 && time <= 6.23) {
         ctx.save();
-        ctx.fillStyle = time < 8.67 ? '#ffffff' : '#ff1438';
+        ctx.fillStyle = time < 6.17 ? '#ffffff' : '#ff1438';
         ctx.fillRect(0, 0, W, H);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 26;
@@ -2347,16 +2395,16 @@
     }
 
     // ==========================================================================
-    // SCENE 03 — CLEAVE (12.0s – 19.0s)
+    // SCENE 03 — CLEAVE (8.69s – 14.61s)
     // ==========================================================================
-    else if (time >= 12.0 && time < 19.0) {
+    else if (time >= 8.69 && time < 14.61) {
       drawSkyAndClouds(ctx, time, '#060308', '#1c0712', '#330818', 'rgba(60, 10, 25, 0.5)');
 
       // Visual Comparison:
-      // 12.0s - 14.3s: Normal slash vs weak target (left side)
-      // 14.3s - 19.0s: Cleave adapting to heavily armored high-cursed-energy target
-      const isPhase2 = time >= 14.3;
-      const camZoom = isPhase2 ? lerp(0.95, 1.08, invLerp(14.3, 17.0, time)) : 0.95;
+      // 8.69s - 10.55s: Normal slash vs weak target
+      // 10.55s - 14.61s: Cleave adapting to heavily armored high-cursed-energy target
+      const isPhase2 = time >= 10.55;
+      const camZoom = isPhase2 ? lerp(0.95, 1.08, invLerp(10.55, 13.10, time)) : 0.95;
 
       ctx.save();
       ctx.translate(W * 0.5, H * 0.5);
@@ -2374,19 +2422,19 @@
 
       if (!isPhase2) {
         // Phase 1: Less durable target cut by single slash
-        const p1Split = invLerp(13.35, 14.2, time);
+        const p1Split = invLerp(9.72, 10.48, time);
         drawSliceableMonolithTarget(ctx, 730, 1340, 180, 480, p1Split, false, 0, time);
-        const s1 = invLerp(13.1, 13.45, time);
+        const s1 = invLerp(9.45, 9.80, time);
         drawAnimeSlashArc(ctx, 450, 1120, 940, 960, 12, '#ffffff', '#ff1e42', s1);
       } else {
         // Phase 2: Heavily Reinforced Target with Cursed Energy Rings + Adapting Cleave Spiderweb
-        const lockOnAlpha = invLerp(14.3, 15.2, time) * (1 - invLerp(17.1, 17.5, time));
-        const p2Split = invLerp(16.9, 18.5, time);
+        const lockOnAlpha = invLerp(10.55, 11.35, time) * (1 - invLerp(13.25, 13.65, time));
+        const p2Split = invLerp(13.08, 14.48, time);
         drawSliceableMonolithTarget(ctx, 720, 1360, 320, 680, p2Split, true, lockOnAlpha, time);
 
-        // Tactical Power-Adjustment Readout & Adapting Slash Matrix (15.0s - 17.2s)
-        if (time >= 14.9 && time <= 17.3) {
-          const adaptProg = invLerp(15.0, 16.8, time);
+        // Tactical Power-Adjustment Readout & Adapting Slash Matrix (11.10s - 13.35s)
+        if (time >= 11.10 && time <= 13.35) {
+          const adaptProg = invLerp(11.15, 12.98, time);
           ctx.save();
           ctx.translate(720, 1020);
 
@@ -2417,24 +2465,24 @@
         eyeOpen: 1.0,
         expression: 'sinisterSmile',
         pose: 'cleavePalm',
-        actionProgress: invLerp(14.4, 16.2, time),
+        actionProgress: invLerp(10.65, 12.30, time),
         auraIntensity: 0.75
       });
 
       ctx.restore();
 
-      // Cleave Impact Flash Frame (16.88s - 16.98s)
-      if (time >= 16.88 && time <= 16.98) {
+      // Cleave Impact Flash Frame (13.05s - 13.15s)
+      if (time >= 13.05 && time <= 13.15) {
         ctx.fillStyle = 'rgba(255, 25, 60, 0.85)';
         ctx.fillRect(0, 0, W, H);
       }
     }
 
     // ==========================================================================
-    // SCENE 04 — FURNACE / FUGA (19.0s – 27.0s)
+    // SCENE 04 — FURNACE / FUGA (14.61s – 23.39s)
     // ==========================================================================
-    else if (time >= 19.0 && time < 27.0) {
-      const heatShift = invLerp(19.5, 24.5, time);
+    else if (time >= 14.61 && time < 23.39) {
+      const heatShift = invLerp(15.20, 20.40, time);
       drawSkyAndClouds(
         ctx,
         time,
@@ -2445,8 +2493,8 @@
       );
 
       // Camera starts close-medium (1.28) on Sukuna's face & raised hands, pulls back to wide (0.84) as flames erupt
-      const camZoom = lerp(1.28, 0.84, easeInOutCubic(invLerp(21.2, 25.2, time)));
-      const camY = lerp(-85, 45, easeInOutCubic(invLerp(21.2, 25.2, time)));
+      const camZoom = lerp(1.28, 0.84, easeInOutCubic(invLerp(17.20, 21.20, time)));
+      const camY = lerp(-85, 45, easeInOutCubic(invLerp(17.20, 21.20, time)));
 
       ctx.save();
       ctx.translate(W * 0.5, H * 0.5);
@@ -2462,8 +2510,8 @@
         midStructures: '#210906'
       });
 
-      const igniteProg = invLerp(19.7, 23.8, time);
-      const releaseProg = invLerp(24.2, 26.8, time);
+      const igniteProg = invLerp(15.45, 20.15, time);
+      const releaseProg = invLerp(20.30, 23.20, time);
 
       // Sukuna raising hands to summon & unleash Furnace
       drawSukunaCharacter(ctx, {
@@ -2473,7 +2521,7 @@
         time,
         headPitch: 0,
         eyeOpen: 1.0,
-        expression: time > 23.8 ? 'sinisterSmile' : 'serious',
+        expression: time > 20.0 ? 'sinisterSmile' : 'serious',
         pose: 'furnaceFire',
         actionProgress: igniteProg,
         rimLightColor: 'rgba(255, 150, 30, 0.95)',
@@ -2487,20 +2535,20 @@
     }
 
     // ==========================================================================
-    // SCENE 05 — MALEVOLENT SHRINE (27.0s – 44.0s)
+    // SCENE 05 — MALEVOLENT SHRINE (23.39s – 38.00s)
     // ==========================================================================
-    else if (time >= 27.0 && time < 44.0) {
+    else if (time >= 23.39 && time < 38.00) {
       drawSkyAndClouds(ctx, time, '#050103', '#24040d', '#4d0718', 'rgba(85, 8, 24, 0.58)');
 
       // Camera Direction:
-      // 27.0s - 30.5s: Medium shot of Sukuna performing Enmaten hand seal
-      // 30.5s - 35.5s: Pulls backward revealing colossal Malevolent Shrine behind him
-      // 35.5s - 41.5s: Wide perspective with controlled cinematic orbit showing continuous slashes across real world
-      // 41.5s - 44.0s: Settles with Sukuna in foreground and Shrine dominating background
-      const pullBack = easeInOutCubic(invLerp(30.2, 35.2, time));
-      const settleIn = easeInOutCubic(invLerp(41.0, 43.8, time));
+      // 23.39s - 25.95s: Medium shot of Sukuna performing Enmaten hand seal
+      // 25.95s - 31.20s: Pulls backward revealing colossal Malevolent Shrine & open barrier
+      // 31.80s - 36.80s: Wide perspective with controlled cinematic orbit showing continuous slashes across real world
+      // 36.40s - 38.00s: Settles with Sukuna in foreground and Shrine dominating background
+      const pullBack = easeInOutCubic(invLerp(25.95, 31.20, time));
+      const settleIn = easeInOutCubic(invLerp(36.30, 37.90, time));
       const camZoom = lerp(1.22, 0.78, pullBack) + settleIn * 0.16;
-      const orbitX = (time >= 35.0 && time < 42.0) ? Math.sin((time - 35.0) * 0.9) * 95 : 0;
+      const orbitX = (time >= 31.80 && time < 36.80) ? Math.sin((time - 31.80) * 1.15) * 95 : 0;
       const camY = lerp(-95, 70, pullBack) - settleIn * 40;
 
       ctx.save();
@@ -2518,8 +2566,8 @@
       });
 
       // Open-Barrier Ground Ripple Ring (Illustrating domain manifesting directly in real world without closed shell)
-      if (time >= 30.3) {
-        const ringExpand = invLerp(30.3, 35.0, time);
+      if (time >= 25.95) {
+        const ringExpand = invLerp(25.95, 31.40, time);
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 30, 68, 0.75)';
         ctx.lineWidth = 8;
@@ -2530,12 +2578,12 @@
       }
 
       // Colossal Malevolent Shrine Manifesting Behind Sukuna
-      const shrineAlpha = easeOutCubic(invLerp(30.2, 33.2, time));
-      const shrineScale = lerp(0.92, 1.32, easeOutBack(invLerp(30.2, 34.0, time)));
+      const shrineAlpha = easeOutCubic(invLerp(25.92, 29.10, time));
+      const shrineScale = lerp(0.92, 1.32, easeOutBack(invLerp(25.92, 30.00, time)));
       drawMalevolentShrineStructure(ctx, W * 0.5 + orbitX * 0.35, 1140, shrineScale, shrineAlpha, time);
 
-      // Continuous Barrage of Slashes Across the Domain's Effective Range (34.8s - 43.5s)
-      if (time >= 34.8) {
+      // Continuous Barrage of Slashes Across the Domain's Effective Range (31.80s - 37.85s)
+      if (time >= 31.80) {
         ctx.save();
         const slashCount = 18;
         for (let i = 0; i < slashCount; i++) {
@@ -2565,26 +2613,26 @@
         time,
         headPitch: 0,
         eyeOpen: 1.0,
-        expression: time > 30.2 && time < 32.5 ? 'chant' : 'serious',
+        expression: time >= 25.90 && time <= 27.12 ? 'chant' : 'serious',
         pose: 'shrineMudra',
-        actionProgress: invLerp(27.4, 29.2, time),
+        actionProgress: invLerp(23.60, 25.30, time),
         auraIntensity: 1.0
       });
 
       ctx.restore();
 
-      // Brief Crimson Activation Flash at 30.4s
-      if (time >= 30.35 && time <= 30.52) {
+      // Brief Crimson Activation Flash at "Malevolent Shrine!" (25.92s - 26.08s)
+      if (time >= 25.92 && time <= 26.08) {
         ctx.fillStyle = 'rgba(255, 20, 55, 0.72)';
         ctx.fillRect(0, 0, W, H);
       }
     }
 
     // ==========================================================================
-    // SCENE 06 — THE FINAL REVEAL (44.0s – 54.0s)
+    // SCENE 06 — THE FINAL REVEAL (38.00s – 47.30s)
     // ==========================================================================
     else {
-      const t = invLerp(44.0, 54.0, time);
+      const t = invLerp(38.00, TOTAL_DURATION, time);
       drawSkyAndClouds(ctx, time, '#020103', '#120308', '#26040e', 'rgba(40, 5, 14, 0.45)');
 
       // Camera slowly pushes from medium-wide (0.94) to powerful portrait composition (1.26)
@@ -2608,7 +2656,7 @@
         time,
         headPitch: 0,
         eyeOpen: 1.0,
-        expression: time > 46.2 ? 'sinisterSmile' : 'serious',
+        expression: time > 39.40 ? 'sinisterSmile' : 'serious',
         pose: 'idle',
         auraIntensity: lerp(0.85, 0.55, t)
       });
@@ -2619,7 +2667,7 @@
     // ==========================================================================
     // GLOBAL FOREGROUND EMBERS / CURSED PARTICLES & CINEMATIC VIGNETTE
     // ==========================================================================
-    const isFireScene = time >= 19.5 && time < 27.0;
+    const isFireScene = time >= 15.0 && time < 23.39;
     DUST_PARTICLES.forEach((p, idx) => {
       const px = (p.x + time * p.vx + W * 10) % W;
       const py = (p.y + time * p.vy + H * 10) % H;
@@ -2632,18 +2680,24 @@
       ctx.fill();
     });
 
-    // Scene Transition Wipes (At 5.0s, 12.0s, 19.0s, 27.0s, 44.0s)
-    const transitionTimes = [5.0, 12.0, 19.0, 27.0, 44.0];
+    // Crisp Zero-Blackout Anime Slash Cuts at Scene Boundaries (No dark gaps!)
+    const transitionTimes = [2.89, 8.69, 14.61, 23.39, 38.00];
     for (const tr of transitionTimes) {
       const dt = Math.abs(time - tr);
-      if (dt < 0.22) {
-        const prog = 1 - dt / 0.22;
+      if (dt < 0.08) {
+        const prog = 1 - dt / 0.08;
         ctx.save();
-        ctx.fillStyle = tr === 19.0 ? `rgba(255, 85, 15, ${prog * 0.85})` : `rgba(8, 2, 5, ${prog * 0.95})`;
+        ctx.fillStyle = tr === 14.61 ? `rgba(255, 95, 20, ${prog * 0.24})` : `rgba(255, 25, 60, ${prog * 0.22})`;
         ctx.fillRect(0, 0, W, H);
-        // Diagonal anime slash line across transition
+        // Razor anime slash streak across smash-cut
         ctx.strokeStyle = '#ff1e42';
-        ctx.lineWidth = 18 * prog;
+        ctx.lineWidth = 28 * prog;
+        ctx.beginPath();
+        ctx.moveTo(0, H * 0.65);
+        ctx.lineTo(W, H * 0.35);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 10 * prog;
         ctx.beginPath();
         ctx.moveTo(0, H * 0.65);
         ctx.lineTo(W, H * 0.35);
@@ -2687,15 +2741,16 @@
   const btnRestart = document.getElementById('btn-restart');
   const scrubber = document.getElementById('timeline-scrubber');
   const timeCurrent = document.getElementById('time-current');
+  const timeTotal = document.getElementById('time-total');
   const btnVoice = document.getElementById('btn-voice');
   const btnMusic = document.getElementById('btn-music');
   const btnSubs = document.getElementById('btn-subs');
   const btnFullscreen = document.getElementById('btn-fullscreen');
 
-  const audioDirector = new AnimeAudioDirector();
-
   let currentTime = 0;
   let isPlaying = false;
+  let isScrubbing = false;
+  let resumeAfterScrub = false;
   let subtitlesEnabled = true;
   let lastFrameTimestamp = performance.now();
 
@@ -2706,9 +2761,19 @@
     return `${mm}:${ss}`;
   }
 
+  const audioDirector = new AnimeAudioDirector(decodedDuration => {
+    TOTAL_DURATION = Math.max(47.27, decodedDuration);
+    NARRATION_SEGMENTS[NARRATION_SEGMENTS.length - 1].end = TOTAL_DURATION + 0.1;
+    CENTER_CARDS[CENTER_CARDS.length - 1].end = TOTAL_DURATION + 0.1;
+    scrubber.max = TOTAL_DURATION.toFixed(2);
+    if (timeTotal) timeTotal.textContent = formatTime(TOTAL_DURATION);
+  });
+
   function updateHtmlOverlays(time) {
-    // 1. Subtitles
-    const activeSeg = NARRATION_SEGMENTS.find(s => time >= s.start && time <= s.end);
+    // 1. Subtitles — 100% contiguous from 0.00s to TOTAL_DURATION (zero blank gaps)
+    const activeSeg =
+      NARRATION_SEGMENTS.find(s => time >= s.start && time < s.end) ||
+      NARRATION_SEGMENTS[NARRATION_SEGMENTS.length - 1];
     if (activeSeg && subtitlesEnabled) {
       subtitleContainer.classList.remove('hidden');
       if (subtitleBox.innerHTML !== activeSeg.html) {
@@ -2740,7 +2805,9 @@
     }
 
     // 4. Scrubber & Time Readout
-    scrubber.value = time.toFixed(2);
+    if (!isScrubbing) {
+      scrubber.value = clamp(time, 0, TOTAL_DURATION).toFixed(2);
+    }
     timeCurrent.textContent = formatTime(time);
   }
 
@@ -2749,6 +2816,7 @@
     if (isPlaying) {
       startOverlay.classList.add('hidden');
       audioDirector.ensureContext();
+      audioDirector.startVoiceAt(currentTime);
       iconPlayPause.textContent = '⏸';
       labelPlayPause.textContent = 'Pause';
       lastFrameTimestamp = performance.now();
@@ -2781,10 +2849,28 @@
   });
 
   scrubber.addEventListener('input', e => {
-    audioDirector.stopAll();
+    if (!isScrubbing) {
+      isScrubbing = true;
+      resumeAfterScrub = isPlaying;
+      if (isPlaying) {
+        setPlayState(false);
+      }
+    }
     currentTime = parseFloat(e.target.value);
     updateHtmlOverlays(currentTime);
     renderMasterFrame(ctx, currentTime);
+  });
+
+  scrubber.addEventListener('change', e => {
+    currentTime = parseFloat(e.target.value);
+    const shouldResume = resumeAfterScrub;
+    isScrubbing = false;
+    resumeAfterScrub = false;
+    updateHtmlOverlays(currentTime);
+    renderMasterFrame(ctx, currentTime);
+    if (shouldResume) {
+      setPlayState(true);
+    }
   });
 
   btnVoice.addEventListener('click', () => {
@@ -2818,17 +2904,19 @@
     }
   });
 
-  // Main 60fps Animation Loop
+  // Main 60fps Animation Loop (Hardware-Audio-Clock Locked)
   function tick(now) {
     const dt = clamp((now - lastFrameTimestamp) / 1000, 0, 0.1);
     lastFrameTimestamp = now;
 
     if (isPlaying) {
       const prevTime = currentTime;
-      currentTime += dt;
-      if (currentTime >= TOTAL_DURATION) {
+      currentTime = audioDirector.getSyncedTime(currentTime, dt);
+      if (currentTime >= TOTAL_DURATION && !audioDirector.voiceActive) {
         currentTime = TOTAL_DURATION;
         setPlayState(false);
+      } else {
+        currentTime = Math.min(currentTime, TOTAL_DURATION);
       }
       audioDirector.update(prevTime, currentTime, isPlaying);
     }
@@ -2839,6 +2927,7 @@
   }
 
   // Initial first frame render
+  if (timeTotal) timeTotal.textContent = formatTime(TOTAL_DURATION);
   updateHtmlOverlays(0);
   renderMasterFrame(ctx, 0);
   requestAnimationFrame(tick);
