@@ -1,0 +1,1 @@
+Place your own datasets in `raw/`. See the project README for supported formats and commands. Processing writes separate `processed/` files; optional token exports go to `tokenized/`. These files are ignored by Git, and raw files are never modified.
