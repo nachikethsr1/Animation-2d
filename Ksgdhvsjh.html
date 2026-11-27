@@ -745,8 +745,12 @@ body.modal-open{overflow:hidden;}
   body.print-mode .cert-custom-stage{border:none;}
 }
 </style>
-<!-- supabase-js: the browser client. Only the publishable key is ever used. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous" defer></script>
+<!-- supabase-js v2.45.4, vendored next to this page (110 KB, unmodified npm
+     build: dist/umd/supabase.js). It is loaded WITHOUT defer/async so
+     window.supabase exists before the inline script below runs; a CDN
+     fallback in SECTION B.2 covers the case where this file is missing.
+     Only the publishable key is ever used - never the service-role key. -->
+<script src="vendor/supabase-js-2.45.4.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -926,8 +930,95 @@ const SUPABASE_KEY = 'sb_publishable_hMS1oi98-p9Csmo6PBSkUw_9a4ArfFU';
 const CERT_BUCKET  = 'certificate-assets';
 const CERT_BG_PATH_KEY = 'dti_cert_bg_path';
 
+/* ============================================================
+   SECTION B.2a — SUPABASE LIBRARY LOADING
+   ------------------------------------------------------------
+   The vendored file `vendor/supabase-js-2.45.4.js` is a plain
+   <script> tag in <head>, so it has always executed by the time this
+   code runs. If it is missing (someone uploaded only the HTML, or a
+   host served a 404), we try two CDNs, and if all three fail the page
+   says exactly which file to upload instead of pretending to work.
+   ============================================================ */
+
+const SUPABASE_LIB_LOCAL = 'vendor/supabase-js-2.45.4.js';
+const SUPABASE_LIB_CDNS = [
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js',
+  'https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'
+];
+/* diagnostics hook: a host can shorten the wait in a test harness */
+const SUPABASE_LIB_TIMEOUT = Number(window.SUPABASE_LIB_TIMEOUT_MS) > 0
+  ? Number(window.SUPABASE_LIB_TIMEOUT_MS)
+  : 8000;
+
+const LIB_ATTEMPTS = [];   /* {src, ok, why} — shown on the error card */
+let libLoading = null;
+let libRounds = 0;         /* >1 means this is a retry, not the first boot */
+
+function supabaseLibReady(){
+  return !!(window.supabase && typeof window.supabase.createClient === 'function');
+}
+
+function loadScriptTag(src, timeoutMs){
+  return new Promise(function(resolve){
+    let settled = false;
+    const finish = function(ok, why){
+      if(settled) return;
+      settled = true;
+      resolve({ src: src, ok: ok, why: why || '' });
+    };
+    const el = document.createElement('script');
+    el.src = src;
+    el.async = true;
+    el.crossOrigin = 'anonymous';
+    el.onload = function(){ finish(true); };
+    el.onerror = function(){ finish(false, '404 / network blocked'); };
+    setTimeout(function(){ finish(false, 'timeout after ' + (timeoutMs || SUPABASE_LIB_TIMEOUT) + ' ms'); },
+      timeoutMs || SUPABASE_LIB_TIMEOUT);
+    document.head.appendChild(el);
+  });
+}
+
+function ensureSupabaseLibrary(){
+  if(supabaseLibReady()) return Promise.resolve(true);
+  if(libLoading) return libLoading;
+
+  libRounds += 1;
+  LIB_ATTEMPTS.length = 0;
+
+  /* First boot: the <script> tag already asked the browser for the local
+     file, so record that and fall straight through to the CDNs.
+     A retry (the operator just uploaded the file, or the CDN came back):
+     try the local file again first, then the CDNs. */
+  const sources = [];
+  if(libRounds === 1){
+    LIB_ATTEMPTS.push({ src: SUPABASE_LIB_LOCAL, ok: false, why: 'the <script> tag did not expose window.supabase' });
+  }else{
+    sources.push(SUPABASE_LIB_LOCAL);
+  }
+
+  libLoading = sources.concat(SUPABASE_LIB_CDNS).reduce(function(chain, url){
+    return chain.then(function(already){
+      if(already) return true;
+      return loadScriptTag(url).then(function(res){
+        const ok = res.ok && supabaseLibReady();
+        LIB_ATTEMPTS.push({ src: url, ok: ok, why: res.ok ? 'loaded but did not expose window.supabase' : res.why });
+        return ok;
+      });
+    });
+  }, Promise.resolve(false)).then(function(ok){
+    libLoading = null;
+    return ok;
+  });
+
+  return libLoading;
+}
+
+/* ---- the client itself ---- */
 let sb = null;
-if(window.supabase && typeof window.supabase.createClient === 'function'){
+
+function initSupabaseClient(){
+  if(sb) return true;
+  if(!supabaseLibReady()) return false;
   try{
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
@@ -940,14 +1031,16 @@ if(window.supabase && typeof window.supabase.createClient === 'function'){
   }catch(err){
     console.warn('[supabase] client init failed', err && err.message);
     sb = null;
+    AUTH.error = (err && err.message) || 'client-init-failed';
   }
+  return !!sb;
 }
 
 const AUTH = {
   session: null,
   user: null,
   profile: null,
-  gate: sb ? 'loading' : 'config',
+  gate: 'loading',
   error: '',
   busy: false
 };
@@ -1747,11 +1840,41 @@ function signOutButton(label){
 }
 
 function viewGate(){
+  /* the library never arrived — name the file, list what was tried */
+  if(AUTH.gate === 'library'){
+    const rows = LIB_ATTEMPTS.map(function(a){
+      return '<li style="margin:2px 0;word-break:break-all;">' +
+        (a.ok ? '✓ ' : '✕ ') + esc(a.src) +
+        (a.ok ? '' : ' <span class="tiny muted">(' + esc(a.why) + ')</span>') + '</li>';
+    }).join('');
+    return loginPage('Supabase ಗ್ರಂಥಾಲಯ ಲೋಡ್ ಆಗಲಿಲ್ಲ',
+      'portal ಜೊತೆಗೆ ಬರಬೇಕಾದ ಫೈಲ್ ಸಿಗಲಿಲ್ಲ',
+      '<div class="form-msg show error">' +
+        'Supabase JS ಲೋಡ್ ಆಗಲಿಲ್ಲ, ಆದ್ದರಿಂದ ಸೈನ್ ಇನ್ ಸಾಧ್ಯವಿಲ್ಲ.' +
+      '</div>' +
+      '<div class="auth-alt" style="margin-top:0;">' +
+        '<b>ಬೇಕಾದ ಫೈಲ್:</b> <code>' + esc(SUPABASE_LIB_LOCAL) + '</code><br>' +
+        'ಇದನ್ನು <code>Ksgdhvsjh.html</code> ಇರುವ ಅದೇ ಫೋಲ್ಡರ್‌ನಲ್ಲಿ <code>vendor/</code> ಒಳಗೆ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.' +
+      '</div>' +
+      '<div class="auth-alt" style="margin-top:10px;font-size:12px;">' +
+        '<div class="tiny muted" style="margin-bottom:4px;">Tried / ಪ್ರಯತ್ನಿಸಿದವು:</div>' +
+        '<ul style="margin:0;padding-left:18px;">' + rows + '</ul>' +
+      '</div>' +
+      '<button type="button" class="btn btn-primary btn-block" data-action="retry-library" style="margin-top:14px;">' +
+        'ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ</button>' +
+      '<button type="button" class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="location.reload()">' +
+        'ಪುಟ ಮರುಲೋಡ್ ಮಾಡಿ</button>');
+  }
+  /* the library loaded but the client could not be created */
   if(AUTH.gate === 'config'){
     return loginPage('ಸಂಪರ್ಕ ಸಂರಚನೆ ಬಾಕಿ',
-      'Supabase ಕ್ಲೈಂಟ್ ಲೋಡ್ ಆಗಲಿಲ್ಲ',
-      '<div class="form-msg show error">supabase-js ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಪುಟವನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ.</div>' +
-      '<button type="button" class="btn btn-primary btn-block" onclick="location.reload()">ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ</button>');
+      'Supabase ಕ್ಲೈಂಟ್ ರಚಿಸಲಾಗಲಿಲ್ಲ',
+      '<div class="form-msg show error">' +
+        'supabase-js ಲೋಡ್ ಆಗಿದೆ, ಆದರೆ ಕ್ಲೈಂಟ್ ರಚನೆ ವಿಫಲವಾಯಿತು. ' +
+        'ಪೋರ್ಟಲ್‌ನ ಸಂಪರ್ಕ ವಿವರ (URL ಮತ್ತು publishable key) ಪರಿಶೀಲಿಸಿ.' +
+        (AUTH.error ? '<br><span class="tiny">' + esc(AUTH.error) + '</span>' : '') +
+      '</div>' +
+      '<button type="button" class="btn btn-primary btn-block" data-action="retry-library">ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ</button>');
   }
   if(AUTH.gate === 'loading'){
     return loginPage('ಸ್ವಾಗತ',
@@ -4105,6 +4228,16 @@ document.addEventListener('click', function(e){
     }
     case 'logout': logout(); break;
     case 'google-signin': signInGoogle(); break;
+    case 'retry-library': {
+      /* a fresh attempt after the operator fixed the deployment */
+      sb = null;
+      AUTH.session = null;
+      AUTH.user = null;
+      AUTH.profile = null;
+      authHandled = null;
+      startPortal();
+      break;
+    }
     case 'sign-out': signOut(); break;
     case 'retry-profile': {
       if(AUTH.user && sb){
@@ -4681,13 +4814,43 @@ document.addEventListener('change', function(e){
 });
 
 /* ---------- Init ---------- */
+function startPortal(){
+  /* 1. make sure the library is present (local file first, CDNs as backup)
+     2. create the client
+     3. restore the session, then let the gate decide what to draw */
+  AUTH.gate = 'loading';
+  AUTH.error = '';
+  render();
+
+  ensureSupabaseLibrary().then(function(haveLib){
+    if(!haveLib){
+      console.warn('[supabase] library unavailable', LIB_ATTEMPTS);
+      AUTH.gate = 'library';
+      render();
+      return;
+    }
+    if(!initSupabaseClient()){
+      console.warn('[supabase] client could not be created');
+      AUTH.gate = 'config';
+      render();
+      return;
+    }
+    AUTH.gate = 'loading';
+    render();
+    bootAuth();
+  }).catch(function(err){
+    console.warn('[supabase] startup failed', err && err.message);
+    AUTH.gate = 'library';
+    render();
+  });
+}
+
 function init(){
   /* Nothing is stored locally any more except the in-progress draft and a
-     cached certificate background. bootAuth() restores the Supabase session
-     (the OAuth redirect lands here), then the gate decides what to draw. */
+     cached certificate background, so there is no state to restore before
+     the client exists. */
   DB = emptyDB();
-  render();          /* shows the loading card straight away */
-  bootAuth();
+  startPortal();
 }
 init();
 

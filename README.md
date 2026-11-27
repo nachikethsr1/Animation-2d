@@ -56,6 +56,45 @@ python3 -m http.server 8000
 # then open http://localhost:8000/Ksgdhvsjh.html
 ```
 
+## Deploying to Netlify (static, no build)
+
+Upload exactly these files, keeping the folder structure:
+
+```
+Ksgdhvsjh.html                     the portal
+vendor/supabase-js-2.45.4.js       the Supabase browser client
+_redirects                         (optional) sends / to the portal
+```
+
+`_redirects`, if you want the bare domain to work:
+
+```
+/            /Ksgdhvsjh.html   302
+```
+
+No build command, no environment variables, no server. Do **not** publish the
+repository root as-is: `README.md` and `supabase/migrations/*.sql` have no reason
+to be public.
+
+### About the vendored client
+
+`vendor/supabase-js-2.45.4.js` is the unmodified npm build
+`@supabase/supabase-js@2.45.4/dist/umd/supabase.js`
+(sha256 `8596965fe918e656600a1b568d3a168f5c0d3d22a600886bb6f44a6555db01e7`,
+110,797 bytes). It exposes `window.supabase`.
+
+It is a plain `<script>` in `<head>` — deliberately **not** `defer`/`async`, so
+`window.supabase` exists before the inline app script runs. (The earlier CDN tag
+was both deferred *and* pointed at `dist/umd/supabase.min.js`, a file that does
+not exist in that version, which is why the portal reported that the client had
+not loaded.)
+
+If the local file is missing, the page tries jsDelivr and then unpkg, and only
+then shows an error that names `vendor/supabase-js-2.45.4.js` and lists every
+URL it tried. To upgrade, drop a newer `dist/umd/supabase.js` in as
+`vendor/supabase-js-<version>.js` and update the `<script src>` and the CDN
+fallback URLs in `SECTION B.2a`.
+
 ## Google sign-in setup (one-time)
 
 Sign-in is a plain OAuth redirect: browser → Supabase → Google → Supabase → back
