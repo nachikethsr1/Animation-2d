@@ -56,10 +56,39 @@ python3 -m http.server 8000
 # then open http://localhost:8000/Ksgdhvsjh.html
 ```
 
-Google sign-in is an OAuth redirect, so the page's URL must be allow-listed in
-Supabase → Authentication → URL Configuration (Site URL + Redirect URLs), and the
-Google provider must be enabled with a Google Cloud OAuth client. Local
-`http://localhost:8000/Ksgdhvsjh.html` can be added there for development.
+## Google sign-in setup (one-time)
+
+Sign-in is a plain OAuth redirect: browser → Supabase → Google → Supabase → back
+to this page. Two consoles are involved.
+
+**1. Google Cloud Console** — APIs & Services → Credentials → *Create credentials*
+→ *OAuth client ID* → type **Web application**:
+
+| field | value |
+| --- | --- |
+| Authorized redirect URI | `https://yjqfaexhoxbunnaydkdx.supabase.co/auth/v1/callback` |
+| Authorized JavaScript origin (optional for this flow) | the page's origin, e.g. `http://localhost:8000` |
+
+The redirect URI is the Supabase callback, **not** this page — Google returns to
+Supabase, and Supabase returns to the page. Copy the resulting **Client ID** and
+**Client secret**.
+
+**2. Supabase Dashboard** — Authentication → Sign In / Providers → **Google**:
+enable it and paste the Client ID and Client secret. Supabase stores the secret
+(encrypted, server side). It must never be written into this repository or into
+`Ksgdhvsjh.html`.
+
+**3. Supabase Dashboard** — Authentication → URL Configuration:
+
+* **Site URL**: the deployed site (or `http://localhost:8000` while developing)
+* **Redirect URLs**: the page itself, e.g. `http://localhost:8000/Ksgdhvsjh.html`
+  — wildcards such as `http://localhost:8000/**` also work. `signInGoogle()`
+  sends `location.origin + location.pathname` as `redirectTo`, so this exact
+  URL has to be allowed or Supabase falls back to the Site URL.
+
+Consent screen scopes are only `openid`, `email`, `profile` — all non-sensitive,
+so no Google verification review is needed. While the app is in *Testing* only
+listed test users can sign in; publish it when the real users arrive.
 
 ## Accounts
 

@@ -1034,7 +1034,11 @@ function signInGoogle(){
   if(!sb || AUTH.busy) return;
   AUTH.busy = true;
   render();
-  const redirectTo = window.location.href.split('#')[0];
+  /* Origin + path only. Supabase sends the browser back here after Google,
+     so exactly this string must be on the project's redirect allow list.
+     The query string is dropped on purpose: a callback leaves ?code=... in
+     the address bar, and echoing it back would send a spent code around. */
+  const redirectTo = window.location.origin + window.location.pathname;
   sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: redirectTo } })
     .then(function(res){
       if(res && res.error) throw res.error;
