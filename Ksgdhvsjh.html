@@ -9,11 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- Firebase public web config + product flags (see js/firebase-config.js) -->
-<script src="js/firebase-config.js"></script>
-
-<!-- Firebase service layer (modular SDK, loaded as an ES module) -->
-<script type="module" src="js/firebase-service.js"></script>
+<!-- Local-only build: no backend scripts, no external services.
+     Accounts and records live in this browser's localStorage. -->
 
 <style>
 /* ============================================================
@@ -534,7 +531,7 @@ table.data .td-name{font-weight:600;color:var(--navy);}
 body.modal-open{overflow:hidden;}
 
 /* ============================================================
-   17b. GOOGLE SIGN-IN / ACCOUNT GATE  (Firebase phases)
+   17b. SIGN-IN / ACCOUNT GATE
    Reuses the existing login card, badges and buttons — only the
    pieces the old password form needed are added here.
    ============================================================ */
@@ -771,7 +768,6 @@ body.modal-open{overflow:hidden;}
 </style>
 </head>
 <body>
-<div id="setupBanner"></div>
 <div id="app"></div>
 <div id="toasts" class="toasts" aria-live="polite"></div>
 <div id="modal-root"></div>
@@ -993,346 +989,7 @@ function defaultTraining(){
   };
 }
 
-/* Built-in content used when seeding a fresh Firestore project.
-   Accounts are NOT created here — people sign in with Google. */
-function defaultData(){
-  return {
-    version:2,
-    users:[],
-    trainings:[ defaultTraining() ],
-    submissions:[],
-    certificates:[],
-    session:null,
-    certCounter:0,
-    settings:{ defaultPassing:70 }
-  };
-}
-/* back-compat alias for any remaining call site */
-function seedData(){ return defaultData(); }
-
-/* ============================================================
-   SECTION B.2 — FIREBASE AUTH & ACCOUNT GATE
-   ------------------------------------------------------------
-   Replaces the old username/password demo login with Google
-   Sign-In. The rest of the app still reads DB.users / DB.session,
-   but those are now filled from Firestore, and the account's
-   approval status decides what the person is allowed to see.
-
-   Account states (students/{uid}.status):
-     pending   -> registered, waiting for the admin
-     approved  -> full access to trainings
-     rejected  -> registration declined
-     disabled  -> was approved, access revoked
-   ============================================================ */
-
-const FS = () => window.FirebaseService || null;
-
-/* The signed-in Firebase user, the Firestore profile, and a gate state
-   used by render(). gate:
-     'loading' | 'config' | 'signedout' | 'needs-profile' |
-     'pending' | 'rejected' | 'disabled' | 'ready' | 'error'      */
-const AUTH = {
-  user: null,
-  profile: null,
-  gate: 'loading',
-  error: '',
-  busy: false,
-  unsubProfile: null
-};
-
-function authIsAdmin(){
-  const svc = FS();
-  if(!svc || !svc.isSignedIn) return false;
-  if(AUTH.profile && AUTH.profile.role === 'admin') return true;
-  return svc.isAdminEmail(svc.email);
-}
-
-/* ---- map a Firestore student doc into the shape the app expects ---- */
-function profileToUser(uid, p){
-  const isAdmin = (p && p.role === 'admin') || (FS() && FS().isAdminEmail(FS().email));
-  return {
-    id: uid,
-    name: (p && (p.officialName || p.name)) || (AUTH.user && AUTH.user.displayName) || 'ಬಳಕೆದಾರ',
-    email: (p && p.email) || (AUTH.user && AUTH.user.email) || '',
-    kgid: (p && p.kgid) || '',
-    designation: (p && p.designation) || '',
-    department: (p && p.department) || '',
-    role: isAdmin ? 'admin' : 'student',
-    status: (p && p.status) || 'pending',
-    photoURL: (p && p.photoURL) || (AUTH.user && AUTH.user.photoURL) || ''
-  };
-}
-
-/* ---- mirror the signed-in account into DB.users/session so the
-        existing views keep working unchanged ---- */
-function syncAuthIntoDB(){
-  if(!AUTH.user){
-    DB.session = null;
-    return;
-  }
-  const u = profileToUser(AUTH.user.uid, AUTH.profile);
-  const idx = DB.users.findIndex(x => x.id === u.id);
-  if(idx > -1) DB.users[idx] = u; else DB.users.push(u);
-  DB.session = { userId: u.id, at: nowISO() };
-}
-
-/* ---- gate state machine ---- */
-function computeGate(){
-  const svc = FS();
-  /* the module has not initialised yet — that is not a configuration error */
-  if(!svc || !svc.state.ready) return 'loading';
-  if(!svc.state.configured) return 'config';
-  if(!svc.isSignedIn) return 'signedout';
-  if(authIsAdmin()) return 'ready';
-  const p = AUTH.profile;
-  if(!p) return 'needs-profile';
-  const s = p.status || 'pending';
-  if(s === 'approved') return 'ready';
-  if(s === 'rejected') return 'rejected';
-  if(s === 'disabled') return 'disabled';
-  return 'pending';
-}
-
-/* ---- load the Firestore profile for the signed-in account ---- */
-function loadProfile(uid){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.resolve(null);
-
-  return svc.getDoc(svc.doc('students/' + uid)).then(function(snap){
-    return snap.exists() ? snap.data() : null;
-  }).catch(function(err){
-    console.warn('[auth] profile read failed', err && err.code, err && err.message);
-    return null;
-  });
-}
-
-/* ---- subscribe to profile changes (admin approval arrives live) ---- */
-function watchProfile(uid){
-  const svc = FS();
-  if(AUTH.unsubProfile){ try{ AUTH.unsubProfile(); }catch(e){} AUTH.unsubProfile = null; }
-  if(!svc || !svc.state.firestoreReady || !uid) return;
-
-  AUTH.unsubProfile = svc.onSnapshot(
-    svc.doc('students/' + uid),
-    function(snap){
-      AUTH.profile = snap.exists() ? snap.data() : null;
-      const before = AUTH.gate;
-      AUTH.gate = computeGate();
-      syncAuthIntoDB();
-      render();
-      if(before !== 'ready' && AUTH.gate === 'ready'){
-        toast('ನಿಮ್ಮ ಖಾತೆ ಅನುಮೋದನೆಯಾಗಿದೆ. ಸ್ವಾಗತ!', 'success');
-      }
-    },
-    function(err){
-      console.warn('[auth] profile listener failed', err && err.code);
-    }
-  );
-}
-
-/* ---- called by FirebaseService on every auth change ---- */
-function onAuthChanged(user){
-  AUTH.user = user || null;
-
-  if(!user){
-    if(AUTH.unsubProfile){ try{ AUTH.unsubProfile(); }catch(e){} AUTH.unsubProfile = null; }
-    AUTH.profile = null;
-    AUTH.gate = computeGate();
-    syncAuthIntoDB();
-    render();
-    return;
-  }
-
-  AUTH.gate = 'loading';
-  render();
-
-  loadProfile(user.uid).then(function(profile){
-    AUTH.profile = profile;
-    AUTH.gate = computeGate();
-    syncAuthIntoDB();
-    render();
-    watchProfile(user.uid);
-    if(AUTH.gate === 'ready'){
-      Promise.all([
-        reloadPortalData(),
-        refreshCertDesignRemote()
-      ]).then(function(){ render(); }).catch(function(){
-        toast('ಡೇಟಾ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಮರುಲೋಡ್ ಮಾಡಿ.', 'error');
-      });
-    }
-  });
-}
-
-/* ---- actions used by the views ---- */
-function signInGoogle(){
-  const svc = FS();
-  if(!svc || !svc.state.authReady){
-    toast('ಫೈರ್‌ಬೇಸ್ ಸಂರಚನೆ ಬಾಕಿ ಇದೆ. js/firebase-config.js ನೋಡಿ.', 'error');
-    return;
-  }
-  if(AUTH.busy) return;
-  AUTH.busy = true;
-  render();
-  svc.signInWithGoogle().then(function(){
-    AUTH.busy = false;
-    /* onAuthChanged does the rest */
-  }).catch(function(err){
-    AUTH.busy = false;
-    const code = (err && err.code) || '';
-    let msg = 'ಸೈನ್ ಇನ್ ವಿಫಲವಾಯಿತು. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.';
-    if(code === 'auth/popup-closed-by-user') msg = 'ಸೈನ್ ಇನ್ ವಿಂಡೊ ಮುಚ್ಚಲಾಗಿದೆ.';
-    else if(code === 'auth/unauthorized-domain') msg = 'ಈ ಡೊಮೇನ್ Firebase ನಲ್ಲಿ ಅಧಿಕೃತವಾಗಿಲ್ಲ. Firebase Console → Authentication → Settings → Authorized domains ಸೇರಿಸಿ.';
-    else if(code === 'auth/operation-not-allowed') msg = 'Google ಸೈನ್ ಇನ್ Firebase ನಲ್ಲಿ ಸಕ್ರಿಯವಾಗಿಲ್ಲ.';
-    else if(code === 'auth/network-request-failed') msg = 'ನೆಟ್‌ವರ್ಕ್ ದೋಷ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.';
-    console.warn('[auth] sign-in failed', code, err && err.message);
-    toast(msg, 'error');
-    render();
-  });
-}
-
-function signOutGoogle(){
-  const svc = FS();
-  if(!svc) return;
-  svc.signOut().then(function(){
-    logoutLocal();
-  }).catch(function(){
-    logoutLocal();
-  });
-}
-
-function logoutLocal(){
-  DB.session = null;
-  AUTH.profile = null;
-  state.route = 'dashboard';
-  state.adminSection = 'overview';
-  state.trainingId = null;
-  state.stage = 1;
-  state.draft = null;
-  state.editing = null;
-  render();
-  toast('ನೀವು ಯಶಸ್ವಿಯಾಗಿ ಲಾಗ್ ಔಟ್ ಆಗಿದ್ದೀರಿ.', 'success');
-}
-
-/* ---- student self-registration ---- */
-function submitRegistration(form){
-  const svc = FS();
-  const msg = document.getElementById('regMsg');
-  const fail = function(text){
-    if(msg){ msg.className = 'form-msg show error'; msg.textContent = text; }
-    toast(text, 'error');
-  };
-
-  if(!svc || !svc.isSignedIn){ fail('ಮೊದಲು Google ನಿಂದ ಸೈನ್ ಇನ್ ಆಗಿ.'); return; }
-  if(!svc.state.firestoreReady){ fail('ಡೇಟಾಬೇಸ್ ಸಂರಚನೆ ಬಾಕಿ ಇದೆ.'); return; }
-
-  const officialName = String(form.querySelector('[name="officialName"]').value || '').trim();
-  const kgid         = String(form.querySelector('[name="kgid"]').value || '').trim();
-  const designation  = String(form.querySelector('[name="designation"]').value || '').trim();
-  const department   = String(form.querySelector('[name="department"]').value || '').trim();
-
-  if(!officialName){ fail('ಅಧಿಕೃತ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.'); return; }
-  if(!kgid){ fail('ಕೆ.ಜಿ.ಐ.ಡಿ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ.'); return; }
-  if(!designation){ fail('ಹುದ್ದೆಯನ್ನು ನಮೂದಿಸಿ.'); return; }
-
-  AUTH.busy = true;
-  render();
-
-  const uid = svc.uid;
-  const data = {
-    uid: uid,
-    email: svc.email || '',
-    officialName: officialName,
-    kgid: kgid,
-    designation: designation,
-    department: department,
-    status: 'pending',
-    role: 'student',
-    createdAt: svc.serverTimestamp(),
-    updatedAt: svc.serverTimestamp()
-  };
-
-  svc.setDoc(svc.doc('students/' + uid), data)
-    .then(function(){
-      AUTH.busy = false;
-      toast('ನೋಂದಣಿ ಸಲ್ಲಿಸಲಾಗಿದೆ. ನಿರ್ವಾಹಕರ ಅನುಮೋದನೆಗಾಗಿ ಕಾಯಿರಿ.', 'success');
-      return loadProfile(uid);
-    })
-    .then(function(profile){
-      AUTH.profile = profile;
-      AUTH.gate = computeGate();
-      syncAuthIntoDB();
-      render();
-      watchProfile(uid);
-    })
-    .catch(function(err){
-      AUTH.busy = false;
-      console.warn('[reg] write failed', err && err.code, err && err.message);
-      let text = 'ನೋಂದಣಿ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.';
-      if(err && err.code === 'permission-denied'){
-        text = 'ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ. Firestore ನಿಯಮಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.';
-      }
-      fail(text);
-      render();
-    });
-}
-
-/* ---- admin approval actions (Phase 5) ---- */
-function setStudentStatus(uid, status){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.reject(new Error('firestore-not-ready'));
-  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
-
-  const payload = { status: status, updatedAt: svc.serverTimestamp() };
-  if(status === 'approved'){
-    payload.verifiedAt = svc.serverTimestamp();
-    payload.verifiedBy = svc.email || '';
-  }
-  return svc.updateDoc(svc.doc('students/' + uid), payload);
-}
-
-/* ------------------------------------------------------------
-   Boot the auth layer.
-
-   index.html is a classic script, so it runs BEFORE the deferred
-   Firebase ES module. We must therefore wait for a real signal
-   rather than assume the service exists.
-
-   Two cases, both handled without a timeout:
-     a) the module already finished  -> __firebaseServiceLoaded is true
-     b) it has not finished yet      -> we register a one-shot callback
-   ------------------------------------------------------------ */
-let authBooted = false;
-
-function bootAuth(){
-  if(authBooted) return;
-  const svc = FS();
-  if(svc){
-    authBooted = true;
-    svc.onReady(function(){
-      AUTH.gate = computeGate();
-      render();
-    });
-    svc.onAuth(onAuthChanged);
-    return;
-  }
-
-  /* the module is still loading: leave a callback for it to fire */
-  AUTH.gate = 'loading';
-  return;
-}
-
-/* Called by js/firebase-service.js once the module is initialised. */
-window.__firebaseServiceReady = function(){
-  if(authBooted) return;
-  bootAuth();
-};
-
-let DB = null;
-
-/* ------------------------------------------------------------
-   Local cache — used ONLY for the in-progress training draft and
-   for offline tolerance. Server data lives in Firestore.
-   ------------------------------------------------------------ */
+/* The shape of a fresh, empty browser database. */
 function emptyDB(){
   return {
     version:2,
@@ -1346,6 +1003,123 @@ function emptyDB(){
   };
 }
 
+/* ============================================================
+   SECTION B.2 — LOCAL SESSION (no backend)
+   ------------------------------------------------------------
+   The portal does not talk to Firebase (or any server) any more.
+   Accounts and records live in this browser's localStorage, so
+   "signing in" means picking which local profile to use.
+
+   The rest of the app still reads DB.users / DB.session and asks
+   authIsAdmin() about the role, so a real provider can be dropped
+   in here later without touching the views.
+   ============================================================ */
+
+const LOCAL_ADMIN_ID = 'u_admin';
+
+function authIsAdmin(){
+  const u = currentUser();
+  return !!(u && u.role === 'admin');
+}
+
+/* ---- sign in: name + role, stored locally ---- */
+function signInLocal(form){
+  const nameEl = form.querySelector('[name="name"]');
+  const roleEl = form.querySelector('[name="role"]');
+  const name = String((nameEl && nameEl.value) || '').trim();
+  const role = (roleEl && roleEl.value === 'student') ? 'student' : 'admin';
+
+  const msg = document.getElementById('loginMsg');
+  const fail = function(text){
+    if(msg){ msg.className = 'form-msg show error'; msg.textContent = text; }
+    toast(text, 'error');
+  };
+
+  if(!name){ fail('ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.'); return; }
+
+  let user = null;
+  if(role === 'admin'){
+    user = DB.users.find(function(x){ return x.id === LOCAL_ADMIN_ID; }) || null;
+    if(!user){
+      user = {
+        id: LOCAL_ADMIN_ID,
+        name: name,
+        email: '',
+        kgid: '',
+        designation: 'ಉಪ ಪ್ರಾಂಶುಪಾಲರು',
+        department: '',
+        role: 'admin',
+        status: 'approved',
+        createdAt: nowISO()
+      };
+      DB.users.push(user);
+    }
+    user.name = name;
+  }else{
+    user = DB.users.find(function(x){
+      return x.role === 'student' && String(x.name).toLowerCase() === name.toLowerCase();
+    }) || null;
+    if(user && (user.status === 'rejected' || user.status === 'disabled')){
+      fail('ಈ ಖಾತೆಗೆ ಪ್ರವೇಶ ನಿಲ್ಲಿಸಲಾಗಿದೆ. ಸಂಸ್ಥೆಯ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.');
+      return;
+    }
+    if(!user){
+      user = {
+        id: uid('u'),
+        name: name,
+        email: '',
+        kgid: '',
+        designation: '',
+        department: '',
+        role: 'student',
+        status: 'approved',
+        createdAt: nowISO()
+      };
+      DB.users.push(user);
+    }
+  }
+
+  DB.session = { userId: user.id, at: nowISO() };
+  saveDB();
+  state.route = 'dashboard';
+  state.adminSection = 'overview';
+  state.editing = null;
+  render();
+  toast('ಸ್ವಾಗತ, ' + user.name + '!', 'success');
+}
+
+function signOutLocal(){
+  DB.session = null;
+  state.route = 'dashboard';
+  state.adminSection = 'overview';
+  state.trainingId = null;
+  state.stage = 1;
+  state.draft = null;
+  state.editing = null;
+  saveDB();
+  render();
+  toast('ನೀವು ಯಶಸ್ವಿಯಾಗಿ ಲಾಗ್ ಔಟ್ ಆಗಿದ್ದೀರಿ.', 'success');
+}
+
+/* ---- admin approval actions (local accounts) ---- */
+function setStudentStatus(id, status){
+  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
+  const user = DB.users.find(function(x){ return x.id === id; });
+  if(!user) return Promise.reject(new Error('not-found'));
+  user.status = status;
+  if((status === 'rejected' || status === 'disabled') && DB.session && DB.session.userId === id){
+    DB.session = null;
+  }
+  saveDB();
+  return Promise.resolve(true);
+}
+
+let DB = null;
+
+/* ------------------------------------------------------------
+   Local cache — used ONLY for the in-progress training draft and
+   for offline tolerance. There is no server: this IS the data.
+   ------------------------------------------------------------ */
 function loadDB(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
@@ -1403,8 +1177,8 @@ function getSubmission(userId, trainingId){
 function submissionsForTraining(tid){ return DB.submissions.filter(s => s.trainingId === tid); }
 
 function logout(){
-  /* clears the Firebase session as well as local state */
-  signOutGoogle();
+  /* clears the local session as well as the app state */
+  signOutLocal();
 }
 
 /* ---- Draft persistence ---- */
@@ -1464,25 +1238,16 @@ function newDraft(user){
 }
 
 /* ============================================================
-   SECTION C.2 — FIRESTORE DATA LAYER  (Phases 6, 7, 8)
+   SECTION C.2 — LOCAL DATA LAYER
    ------------------------------------------------------------
-   The app keeps using its existing in-memory DB shape, so no view
-   had to be rewritten. This section is the only place that talks
-   to Firestore, and it keeps DB in sync with the server:
+   Everything the portal stores lives in this browser (localStorage,
+   through DB / saveDB()). This is the section that used to be the
+   Firestore adapter. It keeps the small API the views call, seeds
+   the built-in training on a fresh browser and mints certificate
+   numbers locally.
 
-     students/{uid}          profiles + approval status
-     trainings/{trainingId}  content, questions, answer key
-     submissions/{id}        one document per attempt
-     certificates/{id}       issued certificate register
-     certificateDesigns/current
-     settings/portal
-
-   Rules:
-     - the browser never invents marks or pass status
-     - a student may only ever write their own documents
-     - duplicate attempts on the same training are refused here
-       AND structurally impossible to fake, because the rules make
-       submissions immutable once written
+   Nothing here talks to a server. When a real backend is added
+   later, this is the only section that has to change.
    ============================================================ */
 
 const DataStore = {
@@ -1490,708 +1255,39 @@ const DataStore = {
   loadedSubmissions: false,
   loadedCertificates: false,
   error: '',
-  unsubs: []
+  reload: null
 };
 
-function firestoreOn(){
-  const svc = FS();
-  return !!(svc && svc.state.firestoreReady && svc.isSignedIn);
-}
-
-/* Write a training's answer key to the admin-only registry. Extracted so
-   the admin save path and any migration both use one implementation. */
-/* The key document is what the rules mark the paper against, so it carries
-   everything the rule needs: the token list, the marks available and the
-   pass threshold. A student can only read it after handing their paper in. */
-function saveTrainingKeyDoc(trainingId, key, questions, passing){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.reject(new Error('firestore-not-ready'));
-  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
-  const qs = questions || (getTraining(trainingId) || {}).questions || [];
-  const pass = Number(passing) || Number((getTraining(trainingId) || {}).passing) || 70;
-  const payload = {
-    key: key || {},
-    tokens: keyTokensFor(qs, key || {}),
-    totalMarks: totalMarksFor(qs),
-    questionCount: (qs || []).length,
-    passing: pass,
-    updatedAt: svc.serverTimestamp(),
-    updatedBy: svc.email || ''
-  };
-  return svc.setDoc(svc.doc('trainingKeys/' + trainingId), payload, { merge: true })
-    .then(function(){
-      ANSWERS.keys[trainingId] = payload.key;
-      ANSWERS.loaded = true;
-      return true;
-    });
-}
-
-/* ------------------------------------------------------------
-   mapping helpers
-   ------------------------------------------------------------ */
-
-/* ------------------------------------------------------------
-   answer keys (Phase 2)
-
-   Answers used to live on trainings/{id} as `answerKey`. That document is
-   readable by every approved student, so any student could open the console
-   and read the correct answers before submitting — the exam was open-book.
-   Worse, computeResult() marked the paper in the browser, so the score the
-   student handed in was the score they were given.
-
-   Keys now live in trainingKeys/{trainingId}, which only the admin can read.
-   A student therefore cannot mark their own paper; and because submissions
-   are immutable in the rules, the app checks its own score against this
-   cache before it shows anything.
-   ------------------------------------------------------------ */
-
-/* in-memory cache: trainingId -> { qId: optionIndex } */
-const ANSWERS = { keys: {}, loaded: false };
-
-/* ------------------------------------------------------------
-   SCORING MODE — read this before changing it.
-
-   'client'  The browser marks the paper, so the browser needs the key, so
-             the key is readable by approved students. This is the current
-             behaviour and it is NOT secure: a student can open the console
-             and read the answers before submitting. It exists so the exam
-             keeps working while no Cloud Function is deployed.
-
-   'server'  Answers are sent to the scoring Cloud Function, which marks
-             them with the admin-only key. Only then is `answerKey` dropped
-             from the training document and the key confined to
-             trainingKeys/{id}. Requires the function to be deployed
-             (Blaze plan). See PHASE2_PHASE3_REPORT.md.
-
-   Flipping this to 'server' without a deployed function leaves students
-   unable to submit, so it is deliberately a manual switch.
-   ------------------------------------------------------------ */
-const SCORING = { mode: 'rules-verified' };
-function scoringIsServerSide(){ return SCORING.mode !== 'client'; }
-
-/* The answer key is NEVER written to the training document any more, in any
-   mode. trainings/{id} is readable by every approved student, so a key on it
-   is a key in the browser console.
-
-   The key lives in trainingKeys/{id}, which firestore.rules releases to a
-   student only AFTER their own submission exists — and a submission is
-   create-once with frozen answers. So:
-
-     while the paper is open   the key is unreachable;
-     once the paper is handed in   the key is readable, the browser marks it
-                                   and shows the result instantly;
-     when the marks are written back   the RULES recompute them from the
-                                   frozen answers and refuse anything else.
-
-   The marking that counts therefore happens inside Firestore, not here.
-   What this function does is render a number the rules have already agreed
-   to. See the "server-side marking" section of firestore.rules. */
-function keyIsClientReadable(){ return false; }
-
-/* ------------------------------------------------------------
-   Answer tokens.
-
-   Security Rules have no loops, so they cannot walk an answers map and add
-   up marks. They CAN intersect two sets. Both the key and the student's
-   answers are therefore also written as a flat list of tokens, one token
-   per mark:
-
-     question q3, option 2 chosen, question worth 2 marks
-       ->  "q3:2#1", "q3:2#2"
-
-   marks earned = how many of the student's tokens are also key tokens.
-   Both sides must build the string identically — if you change the format
-   here, change scoreIsHonest() in firestore.rules with it.
-   ------------------------------------------------------------ */
-function questionWeight(q){
-  return Number(q && q.marks) > 0 ? Number(q.marks) : 1;
-}
-
-function tokensFor(questions, pick){
-  const out = [];
-  (questions || []).forEach(function(q){
-    const chosen = pick(q);
-    if(chosen === undefined || chosen === null || String(chosen) === '') return;
-    const w = questionWeight(q);
-    for(let i = 1; i <= w; i++) out.push(q.id + ':' + Number(chosen) + '#' + i);
-  });
-  return out;
-}
-
-/* what the student hands in */
-function answerTokensFor(training, answers){
-  const a = answers || {};
-  return tokensFor(training && training.questions, function(q){ return a[q.id]; });
-}
-
-/* what the key says, written to trainingKeys/{id} by the admin */
-function keyTokensFor(questions, answerKey){
-  const k = answerKey || {};
-  return tokensFor(questions, function(q){ return Number(k[q.id]) || 0; });
-}
-
-function totalMarksFor(questions){
-  let total = 0;
-  (questions || []).forEach(function(q){ total += questionWeight(q); });
-  return total;
-}
-
-function keyForTraining(trainingId){
-  return ANSWERS.keys[trainingId] || {};
-}
-
-function loadAnswerKeys(force){
-  const svc = FS();
-  if(!firestoreOn() || !authIsAdmin()) return Promise.resolve(false);
-  if(ANSWERS.loaded && !force) return Promise.resolve(true);
-  return svc.getDocs(svc.collection('trainingKeys')).then(function(snap){
-    const keys = {};
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){
-        const v = d.data() || {};
-        keys[d.id] = v.key || {};
-      });
-    }
-    ANSWERS.keys = keys;
-    ANSWERS.loaded = true;
-    /* re-shape the trainings already in memory so the admin screens see keys */
-    DB.trainings = DB.trainings.map(function(t){
-      t.answerKey = keyForTraining(t.id);
-      return t;
-    });
-    return true;
-  }).catch(function(err){
-    logFirestoreError('answer keys', err);
-    return false;
-  });
-}
-
-/* Firestore training doc -> the shape views already expect */
-function trainingFromDoc(id, d){
-  return {
-    id: id,
-    title: d.title || '',
-    topic: d.topic || '',
-    date: d.date || '',
-    description: d.description || '',
-    category: d.category || '',
-    accent: d.accent || '#1D3557',
-    institute: d.institute || INSTITUTE,
-    passing: Number(d.passing) || 70,
-    published: d.published !== false,
-    archived: !!d.archived,
-    createdAt: d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toISOString() : (d.createdAt || ''),
-    questions: Array.isArray(d.questions) ? d.questions : [],
-    /* The answer key is NOT stored on the training document any more: that
-       document is readable by every approved student, so an answer key on it
-       was reachable from the browser console. Keys now live in the
-       admin-only trainingKeys/{trainingId} collection (see loadAnswerKeys).
-       answerKey here is an in-memory convenience for the admin screens. */
-    answerKey: (function(){
-      /* an empty object is truthy, so test for content, not existence */
-      const fromRegistry = keyForTraining(id);
-      if(fromRegistry && Object.keys(fromRegistry).length) return fromRegistry;
-      return keyIsClientReadable() ? (d.answerKey || {}) : {};
-    })(),
-    feedback: d.feedback || { day:'', sessions:[], questions:[] }
-  };
-}
-
-/* the app's training shape -> a Firestore document */
-function trainingToDoc(t, extra){
-  return Object.assign({
-    title: t.title || '',
-    topic: t.topic || '',
-    date: t.date || '',
-    description: t.description || '',
-    category: t.category || '',
-    accent: t.accent || '#1D3557',
-    institute: t.institute || INSTITUTE,
-    passing: Number(t.passing) || 70,
-    published: t.published !== false,
-    archived: !!t.archived,
-    questions: t.questions || [],
-    /* The key is normally written to trainingKeys/{id} instead. It is
-       mirrored here only while scoring is client-side, because the browser
-       cannot mark the paper without it. Dropping this mirror is the switch
-       that makes the key genuinely private — see SCORING above. */
-    feedback: t.feedback || { day:'', sessions:[], questions:[] }
-  }, (keyIsClientReadable() ? { answerKey: t.answerKey || {} } : {}), extra || {});
-}
-
-/* Firestore submission doc -> the app's existing submission shape */
-function submissionFromDoc(id, d){
-  const marks = Number(d.marksObtained) || 0;
-  const total = Number(d.totalMarks) || 0;
-  const pct = Number(d.percentage) || 0;
-  return {
-    id: id,
-    userId: d.studentUid,
-    userName: d.officialNameSnapshot || '',
-    trainingId: d.trainingId,
-    trainingTitle: d.trainingTitle || '',
-    trainingTopic: d.trainingTopic || '',
-    trainingDate: d.trainingDate || '',
-    details: {
-      name: d.officialNameSnapshot || '',
-      email: d.emailSnapshot || '',
-      kgid: d.kgidSnapshot || ''
-    },
-    feedback: normalizeFeedback(d.feedbackResponses),
-    answers: d.assessmentAnswers || {},
-    result: {
-      correct: Number(d.correctCount) || 0,
-      wrong: Number(d.wrongCount) || 0,
-      total: total,
-      marks: marks,
-      pct: pct,
-      passed: !!d.passStatus,
-      passing: Number(d.passingPercent) || 70
-    },
-    submittedAt: d.submittedAt && d.submittedAt.toDate ? d.submittedAt.toDate().toISOString() : (d.submittedAt || nowISO()),
-    certificateNo: d.certificateNo || null
-  };
-}
-
-/* older drafts stored feedback as {ratings, answers}; new documents use
-   the same field names so nothing needs migrating on screen */
-function normalizeFeedback(f){
-  if(!f || typeof f !== 'object') return { ratings:{}, answers:{} };
-  return {
-    ratings: f.ratings || {},
-    answers: f.answers || {}
-  };
-}
-
-/* ------------------------------------------------------------
-   constrained reads
-
-   Firestore treats Security Rules as a pre-filter, not a post-filter:
-   a list query is rejected outright unless the rules can prove it can
-   only return permitted documents. So every read below is constrained
-   with a where() that mirrors its rule:
-
-     trainings     published == true
-     submissions   studentUid == <own uid>
-     certificates  studentUid == <own uid>
-     students      admin only
-
-   The constraint and the rule must match EXACTLY. The trainings rule
-   used to carry an extra `resource.data.archived != true`, which this
-   query could not prove, and the emulator refused the whole query with
-   permission-denied — every student saw an empty portal. Archived
-   trainings are kept out of the list below, in JavaScript, and by the
-   fact that archiving also unpublishes.
-
-   Do not replace these with plain getDocs(collection(...)) scans.
-   ------------------------------------------------------------ */
-function q(collectionPath, ...constraints){
-  const svc = FS();
-  const parts = constraints.filter(Boolean);
-  if(!parts.length) return svc.collection(collectionPath);
-  return svc.query(svc.collection(collectionPath), ...parts);
-}
-
-/* ------------------------------------------------------------
-   loading
-   ------------------------------------------------------------ */
-
-function loadPortalData(force){
-  if(!firestoreOn()) return Promise.resolve();
-  if(!authIsAdmin()){
-    /* students: published trainings, their own submissions + certs.
-       No answer keys are fetched — the student path must never see them. */
-    return loadTrainingsForStudent().then(function(){
-      return Promise.all([loadMySubmissions(force), loadMyCertificates(force)]);
-    });
+/* First run in this browser: install the built-in Kannada training.
+   A register the admin deliberately emptied is left empty (seededOnce). */
+function seedLocalData(){
+  if(!DB.trainings.length && !DB.seededOnce){
+    DB.trainings.push(defaultTraining());
   }
-  /* admin: keys first, so every training loaded below can carry its key */
-  return loadAnswerKeys(force).then(function(){
-    return loadTrainingsForAdmin();
-  }).then(function(){
-    return Promise.all([loadAllSubmissions(force), loadAllCertificates(force), loadSettings()]);
-  }).then(function(){
-    /* First admin boot on an empty register publishes the built-in training.
-       Safe on repeat: it is keyed to t_assembly and refuses a populated
-       register, so it can never duplicate or overwrite the admin's work. */
-    return publishDefaultTrainingIfEmpty();
-  }).then(function(seeded){
-    if(seeded) return loadTrainingsForAdmin();   /* show the seeded training */
-  }).then(function(){
-    return loadStudentAccounts();
-  });
+  DB.seededOnce = true;
+  saveDB();
 }
 
-function loadTrainingsForStudent(){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.resolve();
-  const ref = q('trainings', svc.where('published', '==', true));
-  return svc.getDocs(ref).then(function(snap){
-    const out = [];
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){
-        const v = d.data() || {};
-        /* archived is excluded client-side: archived trainings stay
-           readable to keep the rule single-clause and indexable */
-        if(v.archived !== true){
-          out.push(trainingFromDoc(d.id, v));
-        }
-      });
-    }
-    out.sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
-    DB.trainings = out;
-    DataStore.loadedTrainings = true;
-  }).catch(function(err){ logFirestoreError('trainings', err); });
-}
-
-/* Admin reads may scan whole collections: isAdmin() is unconditional in
-   the rules, so no query constraint is required to prove it. */
-function loadTrainingsForAdmin(){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.resolve();
-  return svc.getDocs(svc.collection('trainings')).then(function(snap){
-    const out = [];
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){ out.push(trainingFromDoc(d.id, d.data() || {})); });
-    }
-    out.sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
-    DB.trainings = out;
-    DataStore.loadedTrainings = true;
-  }).catch(function(err){ logFirestoreError('trainings', err); });
-}
-
-function loadMySubmissions(force){
-  const svc = FS();
-  const uid = svc && svc.uid;
-  if(!svc || !svc.state.firestoreReady || !uid) return Promise.resolve();
-  if(DataStore.loadedSubmissions && !force) return Promise.resolve();
-  const ref = q('submissions', svc.where('studentUid', '==', uid));
-  return svc.getDocs(ref).then(function(snap){
-    const out = [];
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){
-        out.push(submissionFromDoc(d.id, d.data() || {}));
-      });
-    }
-    DB.submissions = out;
-    DataStore.loadedSubmissions = true;
-  }).catch(function(err){ logFirestoreError('my submissions', err); });
-}
-
-function loadAllSubmissions(force){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.resolve();
-  if(DataStore.loadedSubmissions && !force) return Promise.resolve();
-  return svc.getDocs(svc.collection('submissions')).then(function(snap){
-    const out = [];
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){ out.push(submissionFromDoc(d.id, d.data() || {})); });
-    }
-    DB.submissions = out;
-    DataStore.loadedSubmissions = true;
-  }).catch(function(err){ logFirestoreError('all submissions', err); });
-}
-
-function loadMyCertificates(force){
-  const svc = FS();
-  const uid = svc && svc.uid;
-  if(!svc || !svc.state.firestoreReady || !uid) return Promise.resolve();
-  if(DataStore.loadedCertificates && !force) return Promise.resolve();
-  const ref = q('certificates', svc.where('studentUid', '==', uid));
-  return svc.getDocs(ref).then(function(snap){
-    const out = [];
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){
-        out.push(d.data() || {});
-      });
-    }
-    DB.certificates = out;
-    DataStore.loadedCertificates = true;
-  }).catch(function(err){ logFirestoreError('my certificates', err); });
-}
-
-function loadAllCertificates(force){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.resolve();
-  if(DataStore.loadedCertificates && !force) return Promise.resolve();
-  return svc.getDocs(svc.collection('certificates')).then(function(snap){
-    const out = [];
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){ out.push(d.data() || {}); });
-    }
-    DB.certificates = out;
-    DataStore.loadedCertificates = true;
-  }).catch(function(err){ logFirestoreError('all certificates', err); });
-}
-
-function loadSettings(){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.resolve();
-  return svc.getDoc(svc.doc('settings/portal')).then(function(snap){
-    if(snap.exists()){
-      const d = snap.data() || {};
-      DB.settings = Object.assign({ defaultPassing:70 }, d);
-      if(typeof d.certCounter === 'number') DB.certCounter = d.certCounter;
-    }
-  }).catch(function(){ /* settings are optional */ });
-}
-
-function logFirestoreError(what, err){
-  DataStore.error = what;
-  const code = (err && err.code) || '';
-  console.warn('[data] failed to load ' + what, code);
-  if(code === 'permission-denied'){
-    toast('ಡೇಟಾ ಓದಲು ಅನುಮತಿ ಇಲ್ಲ. ಪರಿಶೀಲನಾ ಸ್ಥಿತಿ ಅಥವಾ ನಿಯಮಗಳನ್ನು ನೋಡಿ.', 'error');
-  }
-}
-
-/* reload everything for the current account (used after sign-in) */
 function reloadPortalData(){
-  DataStore.loadedTrainings = false;
-  DataStore.loadedSubmissions = false;
-  DataStore.loadedCertificates = false;
-  ACCOUNTS.loaded = false;
-  ANSWERS.loaded = false;
-  return loadPortalData(true).then(function(){ render(); });
+  seedLocalData();
+  render();
+  return Promise.resolve();
 }
 DataStore.reload = reloadPortalData;
 
 /* ------------------------------------------------------------
-   trainings (Phase 7)
+   certificate numbers
+
+   There is no server-side counter any more, so a certificate gets
+   the clearly marked provisional form
+
+     DTI-BNG-<year>-PROV-<uid token>-<NN>
+
+   The uid token keeps two people's numbers apart, and PROV means it
+   can never be mistaken for a register serial.
    ------------------------------------------------------------ */
-
-function saveTrainingToFirestore(draft){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.reject(new Error('firestore-not-ready'));
-  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
-
-  const isNew = !!draft.isNew;
-  const id = isNew ? ('t_' + Date.now().toString(36)) : draft.id;
-
-  const questions = (draft.questions || []).map(function(q){
-    return {
-      id: q.id || uid('q'),
-      text: String(q.text || '').trim(),
-      options: (q.options || []).map(function(o){ return String(o || '').trim(); }),
-      marks: Number(q.marks) || 1
-    };
-  });
-  const answerKey = {};
-  (draft.questions || []).forEach(function(q){ answerKey[q.id] = Number(q.correct) || 0; });
-
-  const feedback = deepCopy(draft.feedback || { day:'', sessions:[], questions:[] });
-  feedback.questions = (feedback.questions || []).map(function(q){
-    return {
-      id: q.id || uid('f'),
-      text: String(q.text || '').trim(),
-      type: q.type === 'textarea' ? 'textarea' : 'radio',
-      options: q.type === 'textarea' ? [] : (q.options || []).map(function(o){ return String(o || '').trim(); }).filter(Boolean)
-    };
-  });
-
-  const doc = trainingToDoc({
-    title: String(draft.title || '').trim(),
-    topic: String(draft.topic || '').trim(),
-    date: String(draft.date || '').trim(),
-    description: String(draft.description || '').trim(),
-    category: String(draft.category || '').trim(),
-    accent: draft.accent || '#1D3557',
-    institute: draft.institute || INSTITUTE,
-    passing: Number(draft.passing) || 70,
-    published: draft.published !== false,
-    archived: !!draft.archived,
-    questions: questions,
-    answerKey: answerKey,
-    feedback: feedback
-  }, {
-    createdAt: isNew ? svc.serverTimestamp() : (draft.createdAt || svc.serverTimestamp()),
-    updatedAt: svc.serverTimestamp(),
-    updatedBy: svc.email || ''
-  });
-
-  /* The questions themselves stay on the training document (students need
-     to read them); only the correct-answer indices move to trainingKeys. */
-  return svc.setDoc(svc.doc('trainings/' + id), doc, { merge: true }).then(function(){
-    /* The key goes to the admin-only registry, and only there. The rules
-       refuse a training document that carries an answerKey field at all. */
-    return saveTrainingKeyDoc(id, answerKey, questions);
-  }).then(function(){
-    return { id: id, isNew: isNew };
-  });
-}
-
-function deleteTrainingFromFirestore(id){
-  const svc = FS();
-  if(!firestoreOn() || !authIsAdmin()) return Promise.reject(new Error('not-admin'));
-  /* the key is a separate document now, so delete it alongside the training */
-  return Promise.all([
-    svc.deleteDoc(svc.doc('trainings/' + id)),
-    svc.deleteDoc(svc.doc('trainingKeys/' + id)).catch(function(){ /* may not exist */ })
-  ]).then(function(){
-    delete ANSWERS.keys[id];
-  });
-}
-
-function setTrainingPublished(id, patch){
-  const svc = FS();
-  if(!firestoreOn() || !authIsAdmin()) return Promise.reject(new Error('not-admin'));
-  return svc.updateDoc(svc.doc('trainings/' + id),
-    Object.assign({}, patch, { updatedAt: svc.serverTimestamp(), updatedBy: svc.email || '' }));
-}
-
-/* ------------------------------------------------------------
-   submissions (Phase 8)
-   ------------------------------------------------------------ */
-
-/* Progress of the attempt — the browser may read this but the
-   final marks come from computeResult() on the stored answer key. */
-function hasSubmittedOnServer(trainingId){
-  const svc = FS();
-  if(!svc || !svc.uid) return false;
-  return DB.submissions.some(function(s){
-    return s.trainingId === trainingId && s.userId === svc.uid;
-  });
-}
-
-/* ------------------------------------------------------------
-   Handing in a paper, in two steps.
-
-   Step 1 writes the answers and NOTHING about the score — the rules refuse
-   a submission that carries marks. The document id is fixed to
-   <uid>_<trainingId>, which is what makes a second attempt impossible and
-   what lets the trainingKeys rule find this submission.
-
-   Step 2 (scoreSubmissionInFirestore, below) fills the score in. By then
-   the answers are frozen, and the rules recompute the marks from them.
-   ------------------------------------------------------------ */
-function submissionIdFor(trainingId){
-  const svc = FS();
-  return (svc && svc.uid ? svc.uid : 'anon') + '_' + trainingId;
-}
-
-function submitAssessmentToFirestore(training, answers, feedback, details){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.reject(new Error('firestore-not-ready'));
-  if(!authIsApproved()) return Promise.reject(new Error('not-approved'));
-
-  const u = currentUser() || {};
-  const id = submissionIdFor(training.id);
-
-  const doc = {
-    studentUid: svc.uid,
-    trainingId: training.id,
-    officialNameSnapshot: details.name || u.name || '',
-    kgidSnapshot: details.kgid || u.kgid || '',
-    emailSnapshot: details.email || u.email || '',
-    designationSnapshot: u.designation || '',
-    trainingTitle: training.title || '',
-    trainingTopic: training.topic || '',
-    trainingDate: training.date || '',
-    feedbackResponses: deepCopy(feedback || { ratings:{}, answers:{} }),
-    assessmentAnswers: deepCopy(answers || {}),
-    /* the same answers, flattened one token per mark, for the rules */
-    answerTokens: answerTokensFor(training, answers),
-    attemptNo: 1,
-    certificateNo: null,
-    submittedAt: svc.serverTimestamp()
-  };
-
-  /* Write first. Only if that is refused do we look, because a submission
-     that does not exist cannot be read — the read rule tests
-     resource.data.studentUid, and there is no resource. Writing first also
-     costs one round trip instead of two on the normal path. */
-  return svc.setDoc(svc.doc('submissions/' + id), doc)
-    .then(function(){ return { id: id }; })
-    .catch(function(err){
-      if(!err || err.code !== 'permission-denied') throw err;
-      /* the usual reason is that this paper is already in: a reload, a
-         second tab, or a submit that died before the marks were written */
-      return svc.getDoc(svc.doc('submissions/' + id)).then(function(snap){
-        if(snap && snap.exists && snap.exists()){
-          const prev = snap.data() || {};
-          return { id: id, resumed: true, alreadyScored: prev.marksObtained !== undefined };
-        }
-        throw err;
-      }, function(){ throw err; });
-    });
-}
-
-/* The key for one training. The rules hand it over only once the submission
-   above exists, so this call fails while the paper is still open — which is
-   exactly the point. */
-function fetchAnswerKeyForTraining(trainingId){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.resolve({});
-  return svc.getDoc(svc.doc('trainingKeys/' + trainingId)).then(function(snap){
-    const d = (snap && snap.exists && snap.exists()) ? (snap.data() || {}) : {};
-    const key = d.key || {};
-    ANSWERS.keys[trainingId] = key;
-    return key;
-  });
-}
-
-/* Write the score back. Every number here is re-derived by the rules from
-   the frozen answers; a value the key does not support is refused. */
-function scoreSubmissionInFirestore(submissionId, result){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.resolve(false);
-  return svc.updateDoc(svc.doc('submissions/' + submissionId), {
-    marksObtained: result.marks,
-    totalMarks: result.total,
-    percentage: result.pct,
-    passStatus: !!result.passed,
-    correctCount: result.correct,
-    wrongCount: result.wrong,
-    passingPercent: result.passing,
-    scoredAt: svc.serverTimestamp()
-  }).then(function(){ return true; });
-}
-
-function authIsApproved(){
-  if(authIsAdmin()) return true;
-  return !!(AUTH.profile && AUTH.profile.status === 'approved');
-}
-
-/* ------------------------------------------------------------
-   certificate register + serial numbers
-   ------------------------------------------------------------ */
-
-/* Certificate numbers.
-
-   There used to be two schemes: the admin got a serial from a counter
-   (DTI-BNG-2026-0007) while a student got a random per-uid token
-   (DTI-BNG-2026-S1J9NFU). Both looked official and neither was
-   reconcilable with the other, so the register could not be audited.
-
-   ISSUED SERIAL      DTI-BNG-<year>-<NNNN>
-     One source: the settings/portal counter, bumped in a transaction.
-     Only the admin can write settings/, so only the admin can mint one.
-
-   PROVISIONAL NUMBER DTI-BNG-<year>-PROV-<uid token>-<NN>
-     A student cannot reach the counter, so when the browser issues the
-     certificate it cannot be given a serial. It gets this instead.
-
-     The provisional form used to be 9000 + a counter kept in this
-     browser's localStorage, formatted exactly like a serial. Two
-     problems, both reproduced against the emulator in
-     tests/emulator/suites/09-cert-numbering.js:
-       - the counter is per device, so EVERY student's first certificate
-         was DTI-BNG-<year>-9001 (N04); and
-       - once settings/portal.certCounter passes 9000 the admin mints
-         DTI-BNG-<year>-9001 as a real serial and the two collide (N05).
-
-     The uid token makes it unique per student, and the PROV marker means
-     it can never equal a counter serial and can never be mistaken for one
-     by a human reading the certificate. The certificate document also
-     carries provisional: true so the admin register can find them. */
-function formatCertNumber(year, n){
-  return 'DTI-BNG-' + year + '-' + String(n).padStart(4, '0');
-}
-
-/* A short, stable, per-account token. Same account -> same token, so a
-   student's numbers stay recognisably theirs. */
-function certUidToken(uid){
-  const src = String(uid || 'anon');
+function certUidToken(uidValue){
+  const src = String(uidValue || 'anon');
   let hashed = 0;
   for(let i = 0; i < src.length; i++){
     hashed = ((hashed << 5) - hashed + src.charCodeAt(i)) | 0;
@@ -2199,8 +1295,8 @@ function certUidToken(uid){
   return Math.abs(hashed).toString(36).toUpperCase().padStart(5, '0').slice(0, 5);
 }
 
-function formatProvisionalCertNumber(year, uid, seq){
-  return 'DTI-BNG-' + year + '-PROV-' + certUidToken(uid) + '-' + String(seq).padStart(2, '0');
+function formatProvisionalCertNumber(year, uidValue, seq){
+  return 'DTI-BNG-' + year + '-PROV-' + certUidToken(uidValue) + '-' + String(seq).padStart(2, '0');
 }
 
 /* Is this number a provisional one rather than a register serial? */
@@ -2208,179 +1304,12 @@ function isProvisionalCertNumber(no){
   return /-PROV-/.test(String(no || ''));
 }
 
-function nextCertificateNumberRemote(){
-  const svc = FS();
-  const year = new Date().getFullYear();
-  const myUid = (svc && svc.uid) || (currentUser() || {}).id || 'anon';
-
-  if(!firestoreOn() || !svc){
-    return Promise.resolve(formatProvisionalCertNumber(year, myUid, nextLocalCertSeq()));
-  }
-
-  /* settings/ is admin-write-only. A student cannot run this transaction at
-     all, so do not even attempt it: attempt it and the whole submit flow
-     fails with permission-denied. They get a provisional number instead. */
-  if(!authIsAdmin()){
-    return Promise.resolve(formatProvisionalCertNumber(year, myUid, nextLocalCertSeq()));
-  }
-
-  return svc.runTransaction(function(tx){
-    const ref = svc.doc('settings/portal');
-    return tx.get(ref).then(function(snap){
-      const cur = snap.exists() ? (snap.data() || {}) : {};
-      const n = (Number(cur.certCounter) || 0) + 1;
-      tx.set(ref, { certCounter: n, updatedAt: svc.serverTimestamp() }, { merge: true });
-      return formatCertNumber(year, n);
-    });
-  }).catch(function(err){
-    /* the counter is unreachable (offline, or the rules refused the write).
-       Do not invent a serial that looks real: mark it provisional so the
-       admin can renumber it, and say so in the console. */
-    console.warn('[cert] counter unavailable, issuing a provisional number', err && err.code);
-    return formatProvisionalCertNumber(year, myUid, nextLocalCertSeq());
-  });
-}
-
-/* Per-device attempt counter. It only distinguishes one student's own
-   provisional numbers from each other; uniqueness between students comes
-   from the uid token in formatProvisionalCertNumber(). */
+/* Per-browser attempt counter. Uniqueness between people comes from
+   the uid token in the number itself. */
 function nextLocalCertSeq(){
   DB.certCounter = (Number(DB.certCounter) || 0) + 1;
+  saveDB();
   return DB.certCounter;
-}
-
-function attachCertificateNumber(submissionId, certNo){
-  /* submissions/{id} is an audit record: "allow update: if false" refuses
-     this write for EVERYONE, the admin included (verified against the
-     emulator, 04-submissions.js S17-S20). The old code sent it anyway and
-     swallowed the permission-denied, which cost a round trip on every
-     single submission and logged a denial server-side. The certificate
-     register is the source of truth for the number; keep the local copy
-     in step so the result screen can show it. */
-  try{
-    const local = DB.submissions.find(function(s){ return s.id === submissionId; });
-    if(local) local.certificateNo = certNo;
-  }catch(e){}
-  return Promise.resolve();
-}
-
-function saveCertificateToFirestore(sub, certNo){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.resolve();
-  const id = 'cert_' + sub.id;
-  const doc = {
-    number: certNo,
-    /* A number the browser minted because the student cannot reach the
-       settings/portal counter. The admin register shows these separately
-       so they can be re-issued with a real serial. */
-    provisional: isProvisionalCertNumber(certNo),
-    submissionId: sub.id,
-    studentUid: sub.userId,
-    studentName: sub.details.name,
-    kgid: sub.details.kgid || '',
-    trainingId: sub.trainingId,
-    trainingTitle: sub.trainingTitle,
-    trainingTopic: sub.trainingTopic,
-    date: sub.trainingDate,
-    marks: sub.result.marks,
-    total: sub.result.total,
-    pct: sub.result.pct,
-    issuedAt: svc.serverTimestamp()
-  };
-  return svc.setDoc(svc.doc('certificates/' + id), doc).catch(function(err){
-    console.warn('[cert] register write failed', err && err.code);
-  });
-}
-
-/* ------------------------------------------------------------
-   certificate design (Phase 9)
-   ------------------------------------------------------------ */
-
-function loadCertDesignRemote(){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.resolve(null);
-  return svc.getDoc(svc.doc('certificateDesigns/current')).then(function(snap){
-    return snap.exists() ? snap.data() : null;
-  }).catch(function(err){
-    console.warn('[cert] design read failed', err && err.code);
-    return null;
-  });
-}
-
-function saveCertDesignRemote(design, bgUrl){
-  const svc = FS();
-  if(!firestoreOn()) return Promise.reject(new Error('firestore-not-ready'));
-  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
-  const doc = {
-    useCustom: !!design.useCustom,
-    aspect: Number(design.aspect) || 1.414,
-    backgroundUrl: bgUrl || '',
-    fields: (design.fields || []).map(function(f){
-      return {
-        id: f.id,
-        type: f.type,
-        key: f.key || '',
-        text: f.text || '',
-        x: Number(f.x) || 0,
-        y: Number(f.y) || 0,
-        w: Number(f.w) || 30,
-        h: Number(f.h) || 0,
-        fontSize: Number(f.fontSize) || 3,
-        fontFamily: f.fontFamily || 'kn',
-        color: f.color || '#14243A',
-        align: f.align || 'center',
-        bold: !!f.bold
-      };
-    }),
-    updatedAt: svc.serverTimestamp(),
-    updatedBy: svc.email || ''
-  };
-  return svc.setDoc(svc.doc('certificateDesigns/current'), doc, { merge: true });
-}
-
-/* ------------------------------------------------------------
-   admin stats that must come from the server, not a guess
-   ------------------------------------------------------------ */
-/* Seed the built-in Kannada training once, for an empty register.
-   Re-running is safe: the check and the write both key off the fixed
-   t_assembly document id, so a repeated init cannot create a duplicate. */
-let SEEDING = { running:false, done:false };
-
-function publishDefaultTrainingIfEmpty(){
-  const svc = FS();
-  if(!firestoreOn() || !authIsAdmin()) return Promise.resolve(false);
-  if(SEEDING.running) return Promise.resolve(false);
-  SEEDING.running = true;
-
-  return svc.getDocs(svc.collection('trainings')).then(function(snap){
-    const existing = [];
-    if(snap && typeof snap.forEach === 'function'){
-      snap.forEach(function(d){ existing.push(d.id); });
-    }
-    const t = defaultTraining();
-    /* already seeded by a previous run (even if other trainings were deleted)? */
-    if(existing.indexOf(t.id) !== -1){ SEEDING.done = true; return false; }
-    /* a populated register is the admin's own content — never add to it */
-    if(existing.length > 0){ SEEDING.done = true; return false; }
-
-    return svc.setDoc(svc.doc('trainings/' + t.id), trainingToDoc(t, {
-      createdAt: svc.serverTimestamp(),
-      updatedAt: svc.serverTimestamp(),
-      updatedBy: svc.email || ''
-    })).then(function(){
-      /* the seed carries its own key; keep the registry in step */
-      return saveTrainingKeyDoc(t.id, t.answerKey || {}, t.questions, t.passing).catch(function(){ return null; });
-    }).then(function(){
-      SEEDING.done = true;
-      return true;
-    });
-  }).catch(function(err){
-    logFirestoreError('seed training', err);
-    return false;
-  }).then(function(res){
-    SEEDING.running = false;
-    return res;
-  });
 }
 
 /* ============================================================
@@ -2388,36 +1317,7 @@ function publishDefaultTrainingIfEmpty(){
    ============================================================ */
 const appEl = document.getElementById('app');
 
-function renderSetupBanner(){
-  const el = document.getElementById('setupBanner');
-  if(!el) return;
-  const svc = FS();
-  const setup = window.FIREBASE_SETUP || {};
-  /* stay quiet until the module has actually reported in, otherwise the
-     banner flashes on every load before the module executes */
-  const moduleSettled = !!(svc && svc.state.ready);
-  const show = setup.showSetupBanner !== false &&
-               moduleSettled &&
-               (!svc.state.configured || !svc.state.authReady);
-  if(!show){ el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="setup-banner">' +
-    '<b>ಸಂರಚನೆ ಬಾಕಿ:</b> Firebase ಇನ್ನೂ ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ. ' +
-    '<code>js/firebase-config.js</code> ನಲ್ಲಿ ನಿಮ್ಮ ಪ್ರಾಜೆಕ್ಟ್ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ — ' +
-    'ಸೂಚನೆಗಳು <code>FIREBASE_SETUP.md</code> ನಲ್ಲಿವೆ.' +
-  '</div>';
-}
-
 function render(){
-  renderSetupBanner();
-  /* Firebase account gate decides which top-level screen shows.
-     'ready' falls through to the original routing below. */
-  const gate = AUTH.gate;
-  if(gate !== 'ready'){
-    appEl.innerHTML = viewGate();
-    bindPostRender();
-    return;
-  }
-
   const u = currentUser();
 
   if(!u){
@@ -2519,137 +1419,14 @@ function bindPostRender(){
 /* ============================================================
    SECTION E — LOGIN VIEW
    ============================================================ */
-/* Official Google "G" mark, inline so no extra request is needed */
-const GOOGLE_G =
-  '<svg width="19" height="19" viewBox="0 0 48 48" aria-hidden="true">' +
-    '<path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>' +
-    '<path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>' +
-    '<path fill="#FBBC05" d="M11.69 28.18c-.44-1.32-.69-2.73-.69-4.18s.25-2.86.69-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/>' +
-    '<path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/>' +
-  '</svg>';
-
-/* ------------------------------------------------------------
-   Account gate: everything that is not the original app shell.
-   ------------------------------------------------------------ */
-function viewGate(){
-  const svc = FS();
-
-  /* Firebase not configured yet */
-  if(AUTH.gate === 'config' || (svc && !svc.state.configured)){
-    return gateCard(
-      'ಸಂರಚನೆ ಬಾಕಿ ಇದೆ',
-      'ಈ ಪೋರ್ಟಲ್ ಈಗ Firebase ಗೆ ಸಂಪರ್ಕಗೊಳ್ಳಲು ಸಿದ್ಧವಾಗಿದೆ, ಆದರೆ Firebase ಪ್ರಾಜೆಕ್ಟ್ ವಿವರಗಳನ್ನು ಇನ್ನೂ ನಮೂದಿಸಿಲ್ಲ.',
-      '<div class="gate-state"><span class="gs-dot"></span><div>' +
-        '<b>js/firebase-config.js</b> ತೆರೆದು <code>REPLACE_WITH_...</code> ಮೌಲ್ಯಗಳನ್ನು ನಿಮ್ಮ Firebase ವೆಬ್ ಕಾನ್ಫಿಗ್‌ನಿಂದ ಬದಲಾಯಿಸಿ. ಸಂಪೂರ್ಣ ಪಟ್ಟಿಗಾಗಿ <b>FIREBASE_SETUP.md</b> ನೋಡಿ.' +
-      '</div></div>',
-      ''
-    );
-  }
-
-  /* still deciding */
-  if(AUTH.gate === 'loading'){
-    return gateCard('ಒಂದು ಕ್ಷಣ...', 'ನಿಮ್ಮ ಖಾತೆಯನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ.', '', '');
-  }
-
-  /* not signed in */
-  if(AUTH.gate === 'signedout'){
-    return viewLogin();
-  }
-
-  /* signed in with Google but no profile yet */
-  if(AUTH.gate === 'needs-profile'){
-    return viewRegistration();
-  }
-
-  /* waiting for the admin */
-  if(AUTH.gate === 'pending' || AUTH.gate === 'rejected' || AUTH.gate === 'disabled'){
-    const map = {
-      pending: {
-        cls:'pending', title:'ಅನುಮೋದನೆಗಾಗಿ ಕಾಯಿರಿ',
-        body:'ನಿಮ್ಮ ನೋಂದಣಿ ಸಲ್ಲಿಸಲಾಗಿದೆ. ನಿರ್ವಾಹಕರು ನಿಮ್ಮ ಹೆಸರು ಮತ್ತು ಕೆ.ಜಿ.ಐ.ಡಿ ಪರಿಶೀಲಿಸಿ ಅನುಮೋದಿಸಿದ ನಂತರ ತರಬೇತಿಗಳು ಲಭ್ಯವಾಗುತ್ತವೆ.',
-        note:'ಅನುಮೋದನೆ ಸ್ವೀಕರಿಸಿದಾಗ ಈ ಪುಟ ತಾನಾಗಿಯೇ ನವೀಕರಣಗೊಳ್ಳುತ್ತದೆ — ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡುವ ಅಗತ್ಯವಿಲ್ಲ.'
-      },
-      rejected: {
-        cls:'rejected', title:'ನೋಂದಣಿ ತಿರಸ್ಕರಿಸಲಾಗಿದೆ',
-        body:'ನಿಮ್ಮ ನೋಂದಣಿಯನ್ನು ನಿರ್ವಾಹಕರು ತಿರಸ್ಕರಿಸಿದ್ದಾರೆ. ಮಾಹಿತಿ ತಪ್ಪಾಗಿದ್ದರೆ ಸಂಸ್ಥೆಯನ್ನು ಸಂಪರ್ಕಿಸಿ.',
-        note:'ಸರಿಪಡಿಸಿದ ವಿವರಗಳೊಂದಿಗೆ ಮರು ನೋಂದಣಿ ಮಾಡಲು ನಿರ್ವಾಹಕರನ್ನು ಕೇಳಿ.'
-      },
-      disabled: {
-        cls:'disabled', title:'ಖಾತೆ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ',
-        body:'ಈ ಖಾತೆಗೆ ಪ್ರವೇಶ ನಿಲ್ಲಿಸಲಾಗಿದೆ. ಹೆಚ್ಚಿನ ಮಾಹಿತಿಗಾಗಿ ಸಂಸ್ಥೆಯ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.',
-        note:''
-      }
-    }[AUTH.gate];
-
-    const p = AUTH.profile || {};
-    return gateCard(map.title, '', 
-      '<div class="gate-state ' + map.cls + '"><span class="gs-dot"></span><div>' + map.body + '</div></div>' +
-      '<div class="card-soft" style="font-size:13.5px;line-height:2;margin-bottom:18px;">' +
-        '<div><b>ಹೆಸರು:</b> ' + esc(p.officialName || '—') + '</div>' +
-        '<div><b>ಕೆ.ಜಿ.ಐ.ಡಿ:</b> ' + esc(p.kgid || '—') + '</div>' +
-        '<div><b>ಹುದ್ದೆ:</b> ' + esc(p.designation || '—') + '</div>' +
-        '<div><b>Google ಖಾತೆ:</b> ' + esc((svc && svc.email) || '—') + '</div>' +
-        '<div><b>ಸ್ಥಿತಿ:</b> <span class="badge ' + (AUTH.gate === 'pending' ? 'gold' : 'red') + '">' + esc(AUTH.gate) + '</span></div>' +
-      '</div>' +
-      (map.note ? '<p class="note">' + esc(map.note) + '</p>' : ''),
-      '<button type="button" class="btn btn-ghost btn-block" data-action="sign-out">ಲಾಗ್ ಔಟ್ / ಬೇರೆ ಖಾತೆ</button>'
-    );
-  }
-
-  /* fallback */
-  return gateCard('ದೋಷ', AUTH.error || 'ಏನೋ ತಪ್ಪಾಗಿದೆ. ಪುಟವನ್ನು ಮರುಲೋಡ್ ಮಾಡಿ.', '',
-    '<button type="button" class="btn btn-ghost btn-block" data-action="sign-out">ಲಾಗ್ ಔಟ್</button>');
-}
-
-function gateCard(title, sub, inner, actions){
-  return '<div class="gate-wrap"><div class="gate-card">' +
-    '<div class="brandrow" style="margin-bottom:16px;">' +
-      '<div class="blogo">' + 'ಜಿ' + '</div>' +
-      '<div><h1 style="font-size:17px;margin:0;">ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ</h1>' +
-      '<div class="tiny muted">District Training Institute, Bengaluru City</div></div>' +
-    '</div>' +
-    '<h2>' + esc(title) + '</h2>' +
-    (sub ? '<p class="gate-sub">' + esc(sub) + '</p>' : '') +
-    inner +
-    (actions ? '<div style="margin-top:18px;">' + actions + '</div>' : '') +
-  '</div></div>';
-}
-
-/* ------------------------------------------------------------
-   STUDENT REGISTRATION (Phase 4)
-   ------------------------------------------------------------ */
-function viewRegistration(){
-  const svc = FS();
-  const googleName = (AUTH.user && AUTH.user.displayName) || '';
-  const email = (svc && svc.email) || '';
-  return gateCard(
-    'ನೋಂದಣಿ',
-    'Google ಖಾತೆಯಿಂದ ಯಶಸ್ವಿಯಾಗಿ ಸೈನ್ ಇನ್ ಆಗಿದ್ದೀರಿ. ತರಬೇತಿ ಪೋರ್ಟಲ್ ಬಳಸಲು ದಯವಿಟ್ಟು ನಿಮ್ಮ ಅಧಿಕೃತ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ.',
-    '<div class="gate-state"><span class="gs-dot"></span><div>' +
-      '<b>Google ಖಾತೆ:</b> ' + esc(email) + '<br>' +
-      '<span class="tiny">ನಿಮ್ಮ Google ಹೆಸರು (' + esc(googleName || '—') + ') ಅನ್ನು ಅಧಿಕೃತ ಹೆಸರಾಗಿ ಬಳಸಲಾಗುವುದಿಲ್ಲ. ಕೆಳಗೆ ನಿಮ್ಮ ಸರಿಯಾದ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.</span>' +
-    '</div></div>' +
-    '<form data-form="register" novalidate>' +
-      '<label class="field"><span>ಅಧಿಕೃತ ಹೆಸರು *</span>' +
-        '<input type="text" name="officialName" placeholder="ಉದಾ: ಅನನ್ಯಾ ಆರ್." autocomplete="name" required></label>' +
-      '<label class="field"><span>ಕೆ.ಜಿ.ಐ.ಡಿ / ಹೆಚ್ ಆರ್ ಎಂಎಸ್ ಸಂಖ್ಯೆ *</span>' +
-        '<input type="text" name="kgid" placeholder="ಉದಾ: KGID123456" required></label>' +
-      '<label class="field"><span>ಹುದ್ದೆ / ಹುದ್ದೆಯ ಹೆಸರು *</span>' +
-        '<input type="text" name="designation" placeholder="ಉದಾ: ಕಿರಿಯ ಸಹಾಯಕ" required></label>' +
-      '<label class="field"><span>ಇಲಾಖೆ / ಕಚೇರಿ</span>' +
-        '<input type="text" name="department" placeholder="ಉದಾ: ಸಚಿವಾಲಯ"></label>' +
-      '<div class="form-msg" id="regMsg"></div>' +
-      '<button type="submit" class="btn btn-primary btn-block"' + (AUTH.busy ? ' disabled' : '') + '>' +
-        (AUTH.busy ? 'ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ...' : 'ನೋಂದಣಿ ಸಲ್ಲಿಸಿ') + '</button>' +
-    '</form>' +
-    '<p class="note" style="margin-top:14px;">ಸಲ್ಲಿಸಿದ ನಂತರ ನಿರ್ವಾಹಕರು ನಿಮ್ಮ ಹೆಸರು ಮತ್ತು ಕೆ.ಜಿ.ಐ.ಡಿ ಪರಿಶೀಲಿಸುತ್ತಾರೆ. ಅನುಮೋದನೆಯವರೆಗೆ ತರಬೇತಿಗಳು ಲಭ್ಯವಾಗುವುದಿಲ್ಲ.</p>',
-    '<button type="button" class="btn btn-ghost btn-block" data-action="sign-out">ಬೇರೆ Google ಖಾತೆ ಬಳಸಿ</button>'
-  );
-}
-
-/* ------------------------------------------------------------
-   SIGN IN (Phase 3) — same brand panel, Google instead of password
-   ------------------------------------------------------------ */
+/* ============================================================
+   SECTION E — LOCAL SIGN-IN
+   ------------------------------------------------------------
+   There is no Google / Firebase sign-in any more: the portal runs
+   in this browser only, so "signing in" just picks which local
+   profile to use. This screen is the seam where a real auth
+   provider (Supabase, later) will go.
+   ============================================================ */
 function viewLogin(){
   return '' +
   '<div class="login-page">' +
@@ -2672,16 +1449,23 @@ function viewLogin(){
     '<div class="login-panel">' +
       '<div class="login-card">' +
         '<h2>ಸ್ವಾಗತ</h2>' +
-        '<p class="sub">ನಿಮ್ಮ Google ಖಾತೆಯಿಂದ ಸೈನ್ ಇನ್ ಆಗಿ</p>' +
-        '<button type="button" class="gbtn" data-action="google-signin"' + (AUTH.busy ? ' disabled' : '') + '>' +
-          GOOGLE_G + '<span>' + (AUTH.busy ? 'ಸೈನ್ ಇನ್ ಆಗುತ್ತಿದೆ...' : 'Google ನೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಆಗಿ') + '</span>' +
-        '</button>' +
-        '<div class="form-msg" id="loginMsg"></div>' +
+        '<p class="sub">ಮುಂದುವರಿಯಲು ನಿಮ್ಮ ಹೆಸರು ಮತ್ತು ಪಾತ್ರವನ್ನು ಆಯ್ಕೆಮಾಡಿ</p>' +
+        '<form data-form="local-signin" novalidate>' +
+          '<label class="field"><span>ನಿಮ್ಮ ಹೆಸರು *</span>' +
+            '<input type="text" name="name" placeholder="ಉದಾ: ಸವಿತಾ ಕೆ. ಎಚ್." autocomplete="name" required></label>' +
+          '<label class="field"><span>ಪಾತ್ರ</span>' +
+            '<select name="role">' +
+              '<option value="admin">ನಿರ್ವಾಹಕರು (Admin)</option>' +
+              '<option value="student">ಶಿಬಿರಾರ್ಥಿ (Student)</option>' +
+            '</select></label>' +
+          '<div class="form-msg" id="loginMsg"></div>' +
+          '<button type="submit" class="btn btn-primary btn-block">ಪ್ರವೇಶಿಸಿ</button>' +
+        '</form>' +
         '<div class="auth-alt">' +
-          '<b>ವಿದ್ಯಾರ್ಥಿಗಳು:</b> ಮೊದಲ ಬಾರಿ ಸೈನ್ ಇನ್ ಮಾಡಿದಾಗ ನೋಂದಣಿ ಫಾರ್ಮ್ ತೋರಿಸುತ್ತದೆ. ನಿರ್ವಾಹಕರು ಅನುಮೋದಿಸಿದ ನಂತರ ತರಬೇತಿಗಳು ಲಭ್ಯವಾಗುತ್ತವೆ.<br>' +
-          '<b>ನಿರ್ವಾಹಕರು:</b> ಅಧಿಕೃತ Google ಖಾತೆಯಿಂದ ಸೈನ್ ಇನ್ ಆಗಿ.' +
+          '<b>ನಿರ್ವಾಹಕರು:</b> ತರಬೇತಿ, ಫಲಿತಾಂಶ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ನಿರ್ವಹಣೆ.<br>' +
+          '<b>ಶಿಬಿರಾರ್ಥಿಗಳು:</b> ತರಬೇತಿ, ಪ್ರತಿಕ್ರಿಯೆ, ಮೌಲ್ಯಮಾಪನ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ.' +
         '</div>' +
-        '<p class="login-note">ಸೈನ್ ಇನ್ ಮಾಡಲು ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕ ಅಗತ್ಯ. ಈ ಪೋರ್ಟಲ್ ನಿಮ್ಮ ಗುಪ್ತಪದವನ್ನು ಎಲ್ಲಿಯೂ ಸಂಗ್ರಹಿಸುವುದಿಲ್ಲ.</p>' +
+        '<p class="login-note">ಈ ಆವೃತ್ತಿ ಇನ್ನೂ ಸರ್ವರ್‌ಗೆ ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ — ಖಾತೆಗಳು ಮತ್ತು ದಾಖಲೆಗಳು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉಳಿಯುತ್ತವೆ.</p>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -3282,8 +2066,7 @@ function computeResult(training, answers, key){
    the same shape as a real serial and collides with the register the
    first time the admin issues one. */
 function nextCertificateNumber(){
-  const svc = FS();
-  const myUid = (svc && svc.uid) || (currentUser() || {}).id || 'anon';
+  const myUid = (currentUser() || {}).id || 'anon';
   return formatProvisionalCertNumber(new Date().getFullYear(), myUid, nextLocalCertSeq());
 }
 
@@ -3308,9 +2091,8 @@ function submitAssessment(){
 
   const details = state.draft.details || {};
 
-  /* The browser cannot mark this paper yet: the answer key is unreadable
-     until the submission exists. `result` is filled in after the hand-in,
-     from the key the rules then release. */
+  /* The paper is marked here, against the answer key stored with the
+     training in this browser. */
   let result = null;
 
   const submission = {
@@ -3333,7 +2115,7 @@ function submitAssessment(){
     certificateNo: null
   };
 
-  /* ---- write to Firestore, then reflect it locally ---- */
+  /* ---- mark the paper, then store the submission ---- */
   const finish = function(certNo){
     submission.result = result;
     if(certNo){
@@ -3364,51 +2146,9 @@ function submitAssessment(){
       : 'ಪರೀಕ್ಷೆ ಸಲ್ಲಿಸಲಾಗಿದೆ.', result.passed ? 'success' : 'info');
   };
 
-  if(!firestoreOn()){
-    /* offline / not configured: the demo DB holds its own key, so the old
-       local behaviour is unchanged */
-    result = computeResult(t, answers);
-    const localCert = result.passed ? nextCertificateNumber() : null;
-    finish(localCert);
-    return;
-  }
-
-  showStageMsg('ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…', 'ok');
-  /* hand in -> read the key the rules now release -> mark -> write the
-     score back (the rules re-mark it) -> certificate */
-  submitAssessmentToFirestore(t, answers, state.draft.feedback, details)
-    .then(function(res){
-      submission.id = res.id;
-      return fetchAnswerKeyForTraining(t.id).then(function(key){
-        result = computeResult(t, answers, key);
-        /* a paper that was already marked (a resumed or duplicate submit)
-           must not be marked again — the rules refuse it, and rightly */
-        if(res.alreadyScored) return null;
-        return scoreSubmissionInFirestore(res.id, result);
-      }).then(function(){
-        if(!result.passed) return null;
-        return nextCertificateNumberRemote().then(function(certNo){
-          return saveCertificateToFirestore(submission, certNo)
-            .then(function(){ return attachCertificateNumber(res.id, certNo); })
-            .then(function(){ return certNo; });
-        });
-      });
-    })
-    .then(finish)
-    .catch(function(err){
-      const code = (err && err.code) || (err && err.message) || '';
-      console.warn('[submit] failed', code);
-      let msg = 'ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.';
-      if(code === 'permission-denied'){
-        msg = 'ಸಲ್ಲಿಸಲು ಅನುಮತಿ ಇಲ್ಲ. ನಿಮ್ಮ ಖಾತೆ ಅನುಮೋದಿತವಾಗಿದೆಯೇ ಎಂದು ಪರಿಶೀಲಿಸಿ.';
-      }else if(code === 'not-approved'){
-        msg = 'ನಿಮ್ಮ ಖಾತೆ ಇನ್ನೂ ಅನುಮೋದಿತವಾಗಿಲ್ಲ.';
-      }else if(code === 'firestore-not-ready'){
-        msg = 'ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕವಿಲ್ಲ.';
-      }
-      showStageMsg(msg, 'error');
-      toast(msg, 'error');
-    });
+  result = computeResult(t, answers);
+  const certNo = result.passed ? nextCertificateNumber() : null;
+  finish(certNo);
 }
 
 function showStageMsg(text, type){
@@ -3805,17 +2545,6 @@ function saveTraining(){
     toast('ತರಬೇತಿ ಯಶಸ್ವಿಯಾಗಿ ಸಂಪಾದಿಸಲಾಗಿದೆ.','success');
   }
 
-  if(firestoreOn()){
-    saveTrainingToFirestore(d).then(function(res){
-      toast(res.isNew ? 'ಹೊಸ ತರಬೇತಿ ಸೇರಿಸಲಾಗಿದೆ.' : 'ತರಬೇತಿ ಸಂಪಾದಿಸಲಾಗಿದೆ.', 'success');
-      state.editing = null;
-      return reloadPortalData();
-    }).catch(function(err){
-      const denied = err && (err.code === 'permission-denied' || err.message === 'not-admin');
-      toast(denied ? 'ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ.' : 'ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.', 'error');
-    });
-    return;
-  }
   saveDB();
   state.editing = null;
   render();
@@ -4028,19 +2757,10 @@ function adminSettings(){
 function trainingVisibility(id, patch){
   const t = getTraining(id);
   if(!t) return;
-  if(!firestoreOn()){
-    if('published' in patch) t.published = patch.published;
-    if('archived'  in patch) t.archived  = patch.archived;
-    saveDB(); render();
-    toast('ಸ್ಥಿತಿ ನವೀಕರಿಸಲಾಗಿದೆ.', 'success');
-    return;
-  }
-  setTrainingPublished(id, patch).then(function(){
-    toast('ಸ್ಥಿತಿ ನವೀಕರಿಸಲಾಗಿದೆ.', 'success');
-    return reloadPortalData();
-  }).catch(function(err){
-    toast(err && err.code === 'permission-denied' ? 'ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ.' : 'ನವೀಕರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.', 'error');
-  });
+  if('published' in patch) t.published = patch.published;
+  if('archived'  in patch) t.archived  = patch.archived;
+  saveDB(); render();
+  toast('ಸ್ಥಿತಿ ನವೀಕರಿಸಲಾಗಿದೆ.', 'success');
 }
 
 /* ============================================================
@@ -4082,40 +2802,9 @@ function saveCertBg(dataUrl){
   catch(e){ toast('Background image could not be saved (storage limit). Try a smaller PNG.','error'); return false; }
 }
 function clearCertBg(){ try{ localStorage.removeItem(CERT_BG_KEY); }catch(e){} }
-/* Remote certificate design, cached for the session.
-   Firestore holds the layout; Storage holds the PNG. The bytes are
-   cached in localStorage so a student's certificate still renders
-   instantly (and offline) after the admin has published a design. */
-let REMOTE_CERT = { design:null, bg:'', loaded:false };
-
-function refreshCertDesignRemote(){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady || !svc.isSignedIn) return Promise.resolve(null);
-  return loadCertDesignRemote().then(function(doc){
-    if(!doc){ REMOTE_CERT.loaded = true; return null; }
-    const design = {
-      useCustom: !!doc.useCustom,
-      aspect: Number(doc.aspect) || 1.414,
-      fields: Array.isArray(doc.fields) ? doc.fields : []
-    };
-    const bg = doc.backgroundUrl || '';
-    REMOTE_CERT = { design: design, bg: bg, loaded: true };
-    /* mirror locally so the student view needs no extra round trip */
-    if(bg){
-      try{ localStorage.setItem(CERT_DESIGN_KEY, JSON.stringify(design)); }catch(e){}
-      try{ localStorage.setItem(CERT_BG_KEY, bg); }catch(e){}
-    }else{
-      try{ localStorage.setItem(CERT_DESIGN_KEY, JSON.stringify(design)); }catch(e){}
-    }
-    return REMOTE_CERT;
-  }).catch(function(){ REMOTE_CERT.loaded = true; return null; });
-}
-
+/* The design is stored in this browser only, so the active design is
+   simply whatever the admin last saved here. */
 function getActiveCertDesign(){
-  /* prefer the design the admin saved on the server */
-  if(REMOTE_CERT.loaded && REMOTE_CERT.design && REMOTE_CERT.design.useCustom && REMOTE_CERT.bg){
-    return { design: REMOTE_CERT.design, bg: REMOTE_CERT.bg };
-  }
   return { design: loadCertDesign(), bg: loadCertBg() };
 }
 
@@ -4364,93 +3053,24 @@ function bindCertDesInputs(){
   }
 }
 
-/* ---- Persist the designer to Firebase (Phase 9) ---- */
+/* ---- Persist the designer (this browser only) ---- */
 function persistCertDesign(){
   const design = certDesState.design;
   if(!design) return Promise.resolve(false);
-
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady || !authIsAdmin()){
-    /* offline / not configured: keep the previous local-only behaviour */
-    const okLocal = saveCertDesign(design);
-    if(okLocal) toast('Certificate design saved locally.', 'success');
-    return Promise.resolve(okLocal);
-  }
-
-  const st = svc.state;
-  const rawBg = String(certDesState.bg || '');
-  const isDataUrl = rawBg.indexOf('data:') === 0;
-  /* A URL is fine to store. A base64 image is not: a 5MB upload becomes a
-     ~6.7MB data URL, and Firestore rejects documents over 1 MiB — which
-     failed silently and left the designer pointing at an image nobody else
-     could load. Only ever persist a Storage URL. */
-  const hasBgDataUrl = isDataUrl;
-
-  if(isDataUrl && !st.storageReady){
-    toast('Certificate background was not saved: Storage is not configured. ' +
-          'The image is only on this device. Set up Firebase Storage, then upload again.', 'error');
-    return Promise.resolve(false);
-  }
-
-  const upload = hasBgDataUrl
-    ? fetch(certDesState.bg).then(r => r.blob()).then(function(blob){
-        const ext = (blob.type || '').indexOf('jpeg') > -1 ? 'jpg' : 'png';
-        return svc.uploadCertificateBg(blob, ext);
-      })
-    : Promise.resolve(rawBg);
-
-  return upload.then(function(bgUrl){
-    /* a download URL is required once there is a background at all */
-    if(String(bgUrl || '').indexOf('data:') === 0){
-      throw Object.assign(new Error('background-not-uploaded'), { code:'background-not-uploaded' });
-    }
-    if(bgUrl) certDesState.bg = bgUrl;
-    return saveCertDesignRemote(design, bgUrl || '');
-  }).then(function(){
-    REMOTE_CERT = {
-      design: { useCustom: !!design.useCustom, aspect: Number(design.aspect)||1.414, fields: deepCopy(design.fields||[]) },
-      bg: certDesState.bg || '',
-      loaded: true
-    };
-    saveCertDesign(design);
-    if(certDesState.bg) saveCertBg(certDesState.bg);
-    toast('Certificate design saved.', 'success');
-    return true;
-  }).catch(function(err){
-    const code = (err && err.code) || (err && err.message) || '';
-    console.warn('[cert] save failed', code);
-    let msg = 'Certificate design could not be saved.';
-    if(code === 'permission-denied' || code === 'not-admin') msg = 'Only the admin can save the certificate design.';
-    else if(code === 'storage/unauthorized') msg = 'Storage permission denied — check storage.rules.';
-    else if(code === 'storage/retry-limit-exceeded') msg = 'Upload failed (network). Try a smaller image.';
-    else if(code === 'background-not-uploaded'){
-      msg = 'Background upload did not complete, so it was NOT saved. The rest of the design is unchanged.';
-    }
-    toast(msg, 'error');
-    return false;
-  });
+  const ok = saveCertDesign(design);
+  if(ok && certDesState.bg) saveCertBg(certDesState.bg);
+  if(ok) toast('Certificate design saved.', 'success');
+  return Promise.resolve(ok);
 }
 
-function resetCertDesignRemote(){
+function resetCertDesign(){
   certDesState.design = defaultCertDesign();
   certDesState.bg = '';
   certDesState.selectedId = null;
   saveCertDesign(certDesState.design);
   clearCertBg();
-  try{ localStorage.removeItem(CERT_BG_KEY); }catch(e){}
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady || !authIsAdmin()){
-    toast('Reset to default certificate.','success');
-    return Promise.resolve(true);
-  }
-  return saveCertDesignRemote(certDesState.design, '').then(function(){
-    REMOTE_CERT = { design: deepCopy(certDesState.design), bg:'', loaded:true };
-    toast('Reset to default certificate.','success');
-    return true;
-  }).catch(function(){
-    toast('Reset saved locally only — server update failed.','error');
-    return false;
-  });
+  toast('Reset to default certificate.','success');
+  return Promise.resolve(true);
 }
 
 /* ---- Student custom certificate renderer ---- */
@@ -4489,14 +3109,14 @@ function setPrintPageOrientation(aspect){
 }
 
 /* ============================================================
-   SECTION L.2 — ADMIN: STUDENT ACCOUNTS (Phase 5)
+   SECTION L.2 — ADMIN: STUDENT ACCOUNTS
    ------------------------------------------------------------
-   Reads students/* from Firestore, lets the admin approve,
-   reject, re-enable or disable an account.
+   Lists the local profiles on this browser and lets the admin
+   approve, reject, re-enable or disable one.
 
-   Security note: the buttons here are convenience only. Every
-   write goes through Firestore rules (firestore.rules), so a
-   student cannot approve themselves even with the console open.
+   Note: these buttons are convenience only. Everything is stored
+   in this browser, so anyone with devtools can edit it. A real
+   backend will enforce this properly.
    ============================================================ */
 
 const ACCOUNTS = {
@@ -4508,45 +3128,28 @@ const ACCOUNTS = {
 };
 
 function loadStudentAccounts(force){
-  const svc = FS();
-  if(!svc || !svc.state.firestoreReady) return Promise.resolve([]);
   if(!authIsAdmin()) return Promise.resolve([]);
-  if(ACCOUNTS.loading) return Promise.resolve(ACCOUNTS.list);
   if(ACCOUNTS.loaded && !force) return Promise.resolve(ACCOUNTS.list);
 
-  ACCOUNTS.loading = true;
+  ACCOUNTS.list = DB.users.map(function(u){
+    return {
+      _id: u.id,
+      officialName: u.name || '',
+      email: u.email || '',
+      kgid: u.kgid || '',
+      designation: u.designation || '',
+      department: u.department || '',
+      status: u.status || 'approved',
+      role: u.role || 'student'
+    };
+  }).sort(function(a, b){
+    const sa = String(a.status || 'pending'), sb = String(b.status || 'pending');
+    if(sa !== sb) return sa === 'pending' ? -1 : (sb === 'pending' ? 1 : sa.localeCompare(sb));
+    return String(a.officialName || '').localeCompare(String(b.officialName || ''));
+  });
+  ACCOUNTS.loaded = true;
   ACCOUNTS.error = '';
-
-  return svc.getDocs(svc.collection('students'))
-    .then(function(snap){
-      const rows = [];
-      if(snap && typeof snap.forEach === 'function'){
-        snap.forEach(function(d){
-          const v = d.data() || {};
-          rows.push(Object.assign({ _id: d.id }, v));
-        });
-      }
-      rows.sort(function(a, b){
-        const sa = String(a.status || 'pending'), sb = String(b.status || 'pending');
-        if(sa !== sb) return sa === 'pending' ? -1 : (sb === 'pending' ? 1 : sa.localeCompare(sb));
-        return String(a.officialName || '').localeCompare(String(b.officialName || ''));
-      });
-      ACCOUNTS.list = rows;
-      ACCOUNTS.loaded = true;
-      ACCOUNTS.loading = false;
-      return rows;
-    })
-    .catch(function(err){
-      ACCOUNTS.loading = false;
-      /* mark as loaded even on failure — otherwise every re-render
-         retries and the page loops forever */
-      ACCOUNTS.loaded = true;
-      ACCOUNTS.error = (err && err.code) === 'permission-denied'
-        ? 'ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ — Firestore ನಿಯಮಗಳಲ್ಲಿ ನಿಮ್ಮ ಇಮೇಲ್ ಇದೆಯೇ ಪರಿಶೀಲಿಸಿ.'
-        : 'ವಿದ್ಯಾರ್ಥಿ ಪಟ್ಟಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ.';
-      console.warn('[accounts] load failed', err && err.code);
-      return [];
-    });
+  return Promise.resolve(ACCOUNTS.list);
 }
 
 function refreshStudentAccounts(){
@@ -4667,10 +3270,10 @@ function adminStudentAccounts(){
       '<button class="btn btn-ghost" data-action="acct-refresh">ಮರುಲೋಡ್</button>' +
     '</div>' +
     '<div class="table-wrap"><table class="data">' +
-      '<thead><tr><th>ಅಧಿಕೃತ ಹೆಸರು</th><th>ಕೆ.ಜಿ.ಐ.ಡಿ</th><th>Google ಇಮೇಲ್</th><th>ಹುದ್ದೆ</th><th>ಸ್ಥಿತಿ</th><th></th></tr></thead>' +
+      '<thead><tr><th>ಅಧಿಕೃತ ಹೆಸರು</th><th>ಕೆ.ಜಿ.ಐ.ಡಿ</th><th>ಇಮೇಲ್</th><th>ಹುದ್ದೆ</th><th>ಸ್ಥಿತಿ</th><th></th></tr></thead>' +
       '<tbody>' + body + '</tbody>' +
     '</table></div>' +
-    '<p class="note" style="margin-top:12px;">ಅನುಮೋದನೆಯ ನಂತರ ವಿದ್ಯಾರ್ಥಿಗೆ ತರಬೇತಿಗಳು ತಕ್ಷಣ ಲಭ್ಯವಾಗುತ್ತವೆ — ಅವರು ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಬೇಕಾಗಿಲ್ಲ.</p>' +
+    '<p class="note" style="margin-top:12px;">ಖಾತೆ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದರೆ ಅಥವಾ ತಿರಸ್ಕರಿಸಿದರೆ ಆ ವ್ಯಕ್ತಿಗೆ ಮತ್ತೆ ಪ್ರವೇಶ ಸಿಗುವುದಿಲ್ಲ. ಖಾತೆಗಳು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಇರುತ್ತವೆ.</p>' +
   '</div>';
 }
 
@@ -4705,7 +3308,7 @@ function bindAccountFilters(){
      - the admin must confirm, and the summary is shown first
      - students, trainings, submissions, certificates and the
        certificate design are re-written document by document
-     - nothing is deleted; Firestore rules still validate every write
+     - nothing is deleted; existing records are overwritten by id
    ============================================================ */
 
 const BACKUP_VERSION = 2;
@@ -4719,46 +3322,35 @@ function backupTimestamp(){
 /* ---------- export ---------- */
 
 function buildBackupPayload(){
-  const svc = FS();
-  return Promise.all([
-    svc.getDocs(svc.collection('students')),
-    svc.getDocs(svc.collection('trainings')),
-    svc.getDocs(svc.collection('submissions')),
-    svc.getDocs(svc.collection('certificates')),
-    svc.getDoc(svc.doc('certificateDesigns/current')),
-    svc.getDoc(svc.doc('settings/portal'))
-  ]).then(function(res){
-    const asArray = function(snap){
-      const out = [];
-      if(snap && typeof snap.forEach === 'function'){
-        snap.forEach(function(d){
-          const v = d.data() || {};
-          out.push(Object.assign({ _id: d.id }, v));
-        });
-      }
-      return out;
-    };
-    const designSnap = res[4];
-    const settingsSnap = res[5];
-    return {
-      _format: 'dti-bengaluru-backup',
-      _version: BACKUP_VERSION,
-      exportedAt: new Date().toISOString(),
-      exportedBy: (svc && svc.email) || '',
-      institute: (typeof INSTITUTE !== 'undefined' ? INSTITUTE : ''),
-      counts: {
-        students: asArray(res[0]).length,
-        trainings: asArray(res[1]).length,
-        submissions: asArray(res[2]).length,
-        certificates: asArray(res[3]).length
-      },
-      students: asArray(res[0]),
-      trainings: asArray(res[1]),
-      submissions: asArray(res[2]),
-      certificates: asArray(res[3]),
-      certificateDesign: designSnap && designSnap.exists() ? designSnap.data() : null,
-      settings: settingsSnap && settingsSnap.exists() ? settingsSnap.data() : null
-    };
+  return Promise.resolve({
+    _format: 'dti-bengaluru-backup',
+    _version: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    exportedBy: (currentUser() || {}).name || '',
+    institute: (typeof INSTITUTE !== 'undefined' ? INSTITUTE : ''),
+    counts: {
+      students: DB.users.length,
+      trainings: DB.trainings.length,
+      submissions: DB.submissions.length,
+      certificates: DB.certificates.length
+    },
+    students: DB.users.map(function(u){
+      return {
+        _id: u.id,
+        officialName: u.name || '',
+        email: u.email || '',
+        kgid: u.kgid || '',
+        designation: u.designation || '',
+        department: u.department || '',
+        status: u.status || 'approved',
+        role: u.role || 'student'
+      };
+    }),
+    trainings: DB.trainings.map(function(t){ return Object.assign({ _id: t.id }, deepCopy(t)); }),
+    submissions: DB.submissions.map(function(sb){ return Object.assign({ _id: sb.id }, deepCopy(sb)); }),
+    certificates: DB.certificates.map(function(c){ return Object.assign({ _id: c.id }, deepCopy(c)); }),
+    certificateDesign: loadCertDesign(),
+    settings: DB.settings ? deepCopy(DB.settings) : null
   });
 }
 
@@ -4780,40 +3372,39 @@ function downloadBlob(filename, text, type){
 }
 
 function exportBackupJSON(){
-  if(!firestoreOn()){ toast('ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕವಿಲ್ಲ.', 'error'); return; }
   toast('ಬ್ಯಾಕಪ್ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…', 'info');
   buildBackupPayload().then(function(payload){
     const name = 'dti-bengaluru-backup-' + backupTimestamp() + '.json';
     if(downloadBlob(name, JSON.stringify(payload, null, 2))){
-      toast('ಬ್ಯಾಕಪ್ ಫೈಲ್ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ.', 'success');
+      toast('ಬ್ಯಾಕಪ್ ಫೈಲ್ ಡೌನ್‍ಲೋಡ್ ಆಗಿದೆ.', 'success');
     }else{
-      toast('ಡೌನ್‌ಲೋಡ್ ವಿಫಲವಾಯಿತು.', 'error');
+      toast('ಡೌನ್‍ಲೋಡ್ ವಿಫಲವಾಯಿತು.', 'error');
     }
   }).catch(function(err){
-    console.warn('[backup] export failed', err && err.code);
+    console.warn('[backup] export failed', err && err.message);
     toast('ಬ್ಯಾಕಪ್ ರಫ್ತು ವಿಫಲವಾಯಿತು.', 'error');
   });
 }
 
 /* CSV is offered per table because spreadsheet use is the common case */
 function exportBackupCSV(which){
-  if(!firestoreOn()){ toast('ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕವಿಲ್ಲ.', 'error'); return; }
-
   buildBackupPayload().then(function(p){
     let rows = [];
     let header = [];
 
     if(which === 'students'){
-      header = ['ಅಧಿಕೃತ ಹೆಸರು','ಕೆ.ಜಿ.ಐ.ಡಿ','ಇಮೇಲ್','ಹುದ್ದೆ','ಇಲಾಖೆ','ಸ್ಥಿತಿ','uid'];
-      rows = p.students.map(function(s){
-        return [s.officialName||'', s.kgid||'', s.email||'', s.designation||'', s.department||'', s.status||'', s._id||''];
+      header = ['ಅಧಿಕೃತ ಹೆಸರು','ಕೆ.ಜಿ.ಐ.ಡಿ','ಇಮೇಲ್','ಹುದ್ದೆ','ಇಲಾಖೆ','ಸ್ಥಿತಿ','id'];
+      rows = p.students.map(function(st){
+        return [st.officialName||'', st.kgid||'', st.email||'', st.designation||'', st.department||'', st.status||'', st._id||''];
       });
     }else if(which === 'results'){
       header = ['ವಿದ್ಯಾರ್ಥಿ','ಕೆ.ಜಿ.ಐ.ಡಿ','ತರಬೇತಿ','ಅಂಕಗಳು','ಒಟ್ಟು','ಶೇಕಡಾವಾರು','ಸ್ಥಿತಿ','ಪ್ರಮಾಣಪತ್ರ','ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ'];
-      rows = p.submissions.map(function(s){
-        return [s.officialNameSnapshot||'', s.kgidSnapshot||'', s.trainingTitle||'',
-                s.marksObtained||0, s.totalMarks||0, (s.percentage||0)+'%',
-                s.passStatus?'ಉತ್ತೀರ್ಣ':'ಅನುತ್ತೀರ್ಣ', s.certificateNo||'-', s.submittedAt||''];
+      rows = DB.submissions.map(function(sb){
+        const r = sb.result || {};
+        const d = sb.details || {};
+        return [d.name || sb.userName || '', d.kgid || '', sb.trainingTitle || '',
+                r.marks || 0, r.total || 0, (r.pct || 0) + '%',
+                r.passed ? 'ಉತ್ತೀರ್ಣ' : 'ಅನುತ್ತೀರ್ಣ', sb.certificateNo || '-', sb.submittedAt || ''];
       });
     }else if(which === 'trainings'){
       header = ['ಶೀರ್ಷಿಕೆ','ವಿಷಯ','ದಿನಾಂಕ','ಉತ್ತೀರ್ಣ %','ಪ್ರಶ್ನೆಗಳು','ಪ್ರಕಟಿತ','ಸಂಗ್ರಹಿತ','id'];
@@ -4837,9 +3428,9 @@ function exportBackupCSV(which){
 
     const name = 'dti-' + which + '-' + backupTimestamp() + '.csv';
     if(downloadBlob(name, csv, 'text/csv;charset=utf-8;')){
-      toast('CSV ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ.', 'success');
+      toast('CSV ಡೌನ್‍ಲೋಡ್ ಆಗಿದೆ.', 'success');
     }else{
-      toast('ಡೌನ್‌ಲೋಡ್ ವಿಫಲವಾಯಿತು.', 'error');
+      toast('ಡೌನ್‍ಲೋಡ್ ವಿಫಲವಾಯಿತು.', 'error');
     }
   }).catch(function(){
     toast('CSV ರಫ್ತು ವಿಫಲವಾಯಿತು.', 'error');
@@ -4885,37 +3476,86 @@ function summarizeBackup(data){
 }
 
 function restoreBackup(data){
-  const svc = FS();
-  if(!firestoreOn() || !authIsAdmin()) return Promise.reject(new Error('not-admin'));
+  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
 
-  const jobs = [];
-  const put = function(path, doc){
-    const clean = Object.assign({}, doc);
-    delete clean._id;
-    jobs.push({ path: path, doc: clean });
-  };
-
-  (data.students || []).forEach(function(s){ put('students/' + s._id, s); });
-  (data.trainings || []).forEach(function(t){ put('trainings/' + t._id, t); });
-  (data.submissions || []).forEach(function(s){ put('submissions/' + s._id, s); });
-  (data.certificates || []).forEach(function(c){ put('certificates/' + c._id, c); });
-  if(data.certificateDesign) put('certificateDesigns/current', data.certificateDesign);
-  if(data.settings) put('settings/portal', data.settings);
-
-  /* sequential writes: keeps us well under connection limits and makes
-     a partial failure easy to reason about */
   let done = 0;
-  const step = function(i){
-    if(i >= jobs.length) return Promise.resolve(done);
-    const j = jobs[i];
-    return svc.setDoc(svc.doc(j.path), j.doc, { merge: true })
-      .then(function(){ done++; return step(i+1); })
-      .catch(function(err){
-        console.warn('[backup] restore skipped', j.path, err && err.code);
-        return step(i+1);
-      });
+  const upsert = function(list, item, id){
+    const i = list.findIndex(function(x){ return x.id === id; });
+    if(i > -1) list[i] = Object.assign({}, list[i], item);
+    else list.push(item);
+    done++;
   };
-  return step(0);
+
+  (data.students || []).forEach(function(st){
+    if(!st._id) return;
+    upsert(DB.users, {
+      id: st._id,
+      name: st.officialName || st.name || 'ಬಳಕೆದಾರ',
+      email: st.email || '',
+      kgid: st.kgid || '',
+      designation: st.designation || '',
+      department: st.department || '',
+      role: st.role === 'admin' ? 'admin' : 'student',
+      status: st.status || 'approved'
+    }, st._id);
+  });
+
+  (data.trainings || []).forEach(function(t){
+    const id = t._id || t.id;
+    if(!id) return;
+    const clean = Object.assign({}, t);
+    delete clean._id;
+    clean.id = id;
+    if(!Array.isArray(clean.questions)) clean.questions = [];
+    if(!clean.answerKey) clean.answerKey = {};
+    if(!clean.feedback) clean.feedback = { day:'', sessions:[], questions:[] };
+    upsert(DB.trainings, clean, id);
+  });
+
+  (data.submissions || []).forEach(function(sb){
+    const id = sb._id || sb.id;
+    if(!id) return;
+    const clean = Object.assign({}, sb);
+    delete clean._id;
+    clean.id = id;
+    /* a backup taken from the old server build carried the Firestore
+       field names — reshape those so the screens can read them */
+    if(!clean.result && clean.marksObtained !== undefined){
+      clean.result = {
+        marks: Number(clean.marksObtained) || 0,
+        total: Number(clean.totalMarks) || 0,
+        pct: Number(clean.percentage) || 0,
+        passed: !!clean.passStatus,
+        correct: Number(clean.correctCount) || 0,
+        wrong: Number(clean.wrongCount) || 0,
+        passing: Number(clean.passingPercent) || 70
+      };
+    }
+    if(!clean.details){
+      clean.details = {
+        name: clean.officialNameSnapshot || '',
+        email: clean.emailSnapshot || '',
+        kgid: clean.kgidSnapshot || ''
+      };
+    }
+    if(!clean.userId && clean.studentUid) clean.userId = clean.studentUid;
+    upsert(DB.submissions, clean, id);
+  });
+
+  (data.certificates || []).forEach(function(c){
+    const id = c._id || c.id;
+    if(!id) return;
+    const clean = Object.assign({}, c);
+    delete clean._id;
+    clean.id = id;
+    upsert(DB.certificates, clean, id);
+  });
+
+  if(data.certificateDesign) saveCertDesign(data.certificateDesign);
+  if(data.settings) DB.settings = Object.assign({ defaultPassing:70 }, data.settings);
+
+  saveDB();
+  return Promise.resolve(done);
 }
 
 function handleBackupFile(file){
@@ -4997,7 +3637,7 @@ function adminBackup(){
 
   '<div class="card" style="margin-bottom:18px;">' +
     '<h3>ಪ್ರಮಾಣಪತ್ರ ಹಿನ್ನೆಲೆ ಚಿತ್ರ</h3>' +
-    '<p class="muted small">ಸಂರಕ್ಷಣೆಗಾಗಿ ಪ್ರಸ್ತುತ ಹಿನ್ನೆಲೆ ಚಿತ್ರವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ. Firebase Storage ನಲ್ಲಿ ಮೂಲ ಫೈಲ್ ಕೂಡ ಉಳಿಯುತ್ತದೆ.</p>' +
+    '<p class="muted small">ಸಂರಕ್ಷಣೆಗಾಗಿ ಪ್ರಸ್ತುತ ಹಿನ್ನೆಲೆ ಚಿತ್ರವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ. ಚಿತ್ರ ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉಳಿದಿರುತ್ತದೆ.</p>' +
     '<div class="row">' +
       '<button class="btn btn-ghost" data-action="backup-cert-image">ಹಿನ್ನೆಲೆ ಚಿತ್ರ ಡೌನ್‌ಲೋಡ್</button>' +
     '</div>' +
@@ -5013,7 +3653,7 @@ function adminBackup(){
     '<div class="row">' +
       '<button class="btn btn-danger" data-action="backup-import">ಬ್ಯಾಕಪ್ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ</button>' +
     '</div>' +
-    '<p class="note" style="margin-top:14px;">ನಿಯಮಿತ ಬ್ಯಾಕಪ್‌ಗಳಿಗಾಗಿ Firebase Console → Firestore → Import/Export ಬಳಸಿ ಅಥವಾ Google Cloud ನಿಗದಿತ ರಫ್ತು (scheduled export) ಸಕ್ರಿಯಗೊಳಿಸಿ. ವಿವರಗಳು FIREBASE_SETUP.md ನಲ್ಲಿವೆ.</p>' +
+    '<p class="note" style="margin-top:14px;">ಡೇಟಾ ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಇರುವುದರಿಂದ, ನಿಯಮಿತವಾಗಿ JSON ಬ್ಯಾಕಪ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಇಟ್ಟುಕೊಳ್ಳಿ — ಬ್ರೌಸರ್ ಡೇಟಾ ಅಳಿಸಿದರೆ ಅದೇ ಫೈಲ್‌ನಿಂದ ಮರುಸ್ಥಾಪಿಸಬಹುದು.</p>' +
   '</div>';
 }
 
@@ -5114,7 +3754,6 @@ document.addEventListener('click', function(e){
     }
     case 'logout': logout(); break;
 
-    /* password + demo-account actions removed: sign-in is Google only */
     case 'open-sidebar': {
       const sb = document.getElementById('sidebar');
       const ov = document.getElementById('sidebarOverlay');
@@ -5260,15 +3899,6 @@ document.addEventListener('click', function(e){
         'ತರಬೇತಿ ಅಳಿಸುವುದೇ?',
         '“' + t.title + '” ತರಬೇತಿಯನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ. ಇದಕ್ಕೆ ಸಂಬಂಧಿಸಿದ ಸಲ್ಲಿಕೆಗಳು ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ದಾಖಲೆಗಳು ಉಳಿಯುತ್ತವೆ.',
         function(){
-          if(firestoreOn()){
-            deleteTrainingFromFirestore(id).then(function(){
-              toast('ತರಬೇತಿ ಅಳಿಸಲಾಗಿದೆ.','success');
-              return reloadPortalData();
-            }).catch(function(err){
-              toast(err && err.code === 'permission-denied' ? 'ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ.' : 'ಅಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.','error');
-            });
-            return;
-          }
           DB.trainings = DB.trainings.filter(x => x.id !== id);
           saveDB();
           render();
@@ -5404,8 +4034,8 @@ document.addEventListener('click', function(e){
     case 'export-csv': exportCSV(); break;
     case 'reset-data': {
       confirmDialog(
-        'ಸ್ಥಳೀಯ ಕ್ಯಾಶ್ ತೆರವು ಮಾಡುವುದೇ?',
-        'ಇದು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಉಳಿಸಿರುವ ತಾತ್ಕಾಲಿಕ ಪ್ರತಿಯನ್ನು (ಡ್ರಾಫ್ಟ್‌ಗಳು ಸೇರಿದಂತೆ) ಮಾತ್ರ ಅಳಿಸುತ್ತದೆ. Firebase ನಲ್ಲಿರುವ ನಿಜವಾದ ಡೇಟಾ — ವಿದ್ಯಾರ್ಥಿಗಳು, ತರಬೇತಿಗಳು, ಫಲಿತಾಂಶಗಳು — ಅಳಿಸುವುದಿಲ್ಲ.',
+        'ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸುವುದೇ?',
+        'ಇದು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿರುವ ಎಲ್ಲವನ್ನೂ — ಖಾತೆಗಳು, ತರಬೇತಿಗಳು, ಸಲ್ಲಿಕೆಗಳು, ಪ್ರಮಾಣಪತ್ರಗಳು ಮತ್ತು ಡ್ರಾಫ್ಟ್‌ಗಳು — ಅಳಿಸುತ್ತದೆ. ಈ ಕ್ರಿಯೆಯನ್ನು ರದ್ದು ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.',
         function(){
           try{
             Object.keys(localStorage).forEach(k => {
@@ -5415,10 +4045,10 @@ document.addEventListener('click', function(e){
           DB = emptyDB();
           state.editing = null;
           state.adminSection = 'overview';
-          /* re-pull whatever the account is allowed to read */
-          if(window.DataStore && DataStore.reload) DataStore.reload();
+          /* fresh start: built-in training, no accounts, no records */
+          seedLocalData();
           render();
-          toast('ಸ್ಥಳೀಯ ಕ್ಯಾಶ್ ತೆರವು ಮಾಡಲಾಗಿದೆ.','success');
+          toast('ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸಲಾಗಿದೆ.','success');
         },
         true
       );
@@ -5474,10 +4104,6 @@ document.addEventListener('click', function(e){
     case 'acct-disable': accountAction(el.getAttribute('data-uid'), 'disable'); break;
     case 'acct-enable':  accountAction(el.getAttribute('data-uid'), 'enable');  break;
     case 'acct-refresh': refreshStudentAccounts(); break;
-
-    /* ---------- firebase auth ---------- */
-    case 'google-signin': signInGoogle(); break;
-    case 'sign-out': signOutGoogle(); break;
 
     /* ---------- certificate designer ---------- */
     case 'certdes-upload': {
@@ -5559,7 +4185,7 @@ document.addEventListener('click', function(e){
         'Reset to default certificate?',
         'The custom design and background will be cleared. Student records, assessments, and results will NOT be affected.',
         function(){
-          resetCertDesignRemote().then(function(){ render(); });
+          resetCertDesign().then(function(){ render(); });
         },
         true
       );
@@ -5661,8 +4287,8 @@ document.addEventListener('submit', function(e){
   e.preventDefault();
   const kind = form.getAttribute('data-form');
 
-  if(kind === 'register'){
-    submitRegistration(form);
+  if(kind === 'local-signin'){
+    signInLocal(form);
     return;
   }
 
@@ -5698,12 +4324,8 @@ document.addEventListener('change', function(e){
 
 /* ---------- Init ---------- */
 function init(){
-  loadDB();            /* local cache only: draft + offline tolerance */
-
-  /* If the service module already ran (e.g. a fast cached load), the
-     flag is set and bootAuth() succeeds immediately. Otherwise we are
-     in the 'loading' state and the module's callback takes over. */
-  bootAuth();
+  loadDB();          /* the whole database lives in localStorage */
+  seedLocalData();   /* install the built-in training on a fresh browser */
   render();
 }
 init();
