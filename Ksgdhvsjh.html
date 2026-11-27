@@ -747,6 +747,165 @@ body.modal-open{overflow:hidden;}
   body.print-mode .cert.cert-custom{border:none;}
   body.print-mode .cert-custom-stage{border:none;}
 }
+
+/* ============================================================
+   21. TRAINING UPDATE — LARGE EDITORS, PART ONE / PART TWO
+   ------------------------------------------------------------
+   The administrator's question boxes were too small to check
+   Kannada spelling. Every question editor is now both wide and
+   tall, and the feedback editor is split into ಭಾಗ-1 (day-wise
+   question blocks) and ಭಾಗ-2 (fixed Kannada questionnaire).
+   ============================================================ */
+
+/* ---- larger question editors (MCQ + feedback, admin) ---- */
+/* every long-form editor is wide AND tall, never a narrow strip */
+textarea.q-big{min-height:200px;line-height:1.9;}
+@media (max-width:760px){ textarea.q-big{min-height:160px;} }
+
+/* the participant's descriptive answer boxes */
+.q-card textarea{
+  width:100%;min-height:150px;padding:12px 14px;border:1px solid var(--line-cool);
+  border-radius:10px;font-family:inherit;font-size:15px;line-height:1.9;
+  resize:vertical;background:#fff;color:var(--ink);
+}
+.q-card textarea:focus{border-color:var(--darkblue);box-shadow:0 0 0 3px rgba(29,53,87,.10);outline:none;}
+@media (max-width:520px){ .q-card textarea{min-height:130px;} }
+
+.qedit textarea{
+  width:100%;min-height:156px;font-size:15px;line-height:1.9;resize:vertical;
+  padding:12px 14px;border:1px solid var(--line-cool);border-radius:10px;
+  font-family:inherit;background:#fff;color:var(--ink);
+}
+.qedit textarea.q-big{min-height:215px;}
+.qedit input[type=text]{
+  width:100%;padding:11px 13px;border:1px solid var(--line-cool);
+  border-radius:10px;font-family:inherit;font-size:15px;background:#fff;
+}
+.qedit .field>span{font-size:13.5px;}
+.qedit .opt-grid{display:grid;gap:12px 16px;grid-template-columns:1fr 1fr;}
+.qedit textarea:focus,.qedit input[type=text]:focus{
+  border-color:var(--darkblue);box-shadow:0 0 0 3px rgba(29,53,87,.10);outline:none;
+}
+@media (max-width:760px){
+  .qedit .opt-grid{grid-template-columns:1fr;}
+  .qedit textarea{min-height:140px;}
+}
+
+/* ---- part one: large, attractive question block (admin) ---- */
+.p1-block{
+  position:relative;border:1px solid #DCD3C0;border-radius:16px;
+  padding:20px 20px 16px;margin-bottom:18px;
+  background:linear-gradient(165deg,#FFFDF7 0%,#FBF8F0 100%);
+  box-shadow:0 8px 24px rgba(20,36,58,.07);
+}
+.p1-block::before{
+  content:"";position:absolute;left:0;top:18px;bottom:18px;width:4px;
+  border-radius:4px;background:linear-gradient(180deg,var(--gold),#E7D9BC);
+}
+.p1-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+.p1-num{
+  background:var(--navy);color:#fff;font-size:12px;font-weight:700;
+  letter-spacing:.3px;border-radius:20px;padding:5px 12px;
+}
+.p1-dayrow{display:grid;grid-template-columns:minmax(170px,250px) minmax(170px,250px);gap:14px 20px;}
+.p1-mini>span{display:block;font-size:13px;font-weight:600;color:var(--darkblue);margin-bottom:6px;}
+.p1-mini input{
+  width:100%;padding:9px 11px;border:1px solid var(--line-cool);border-radius:9px;
+  font-family:inherit;font-size:14.5px;background:#fff;color:var(--ink);
+}
+.p1-mini input:focus{border-color:var(--darkblue);box-shadow:0 0 0 3px rgba(29,53,87,.10);outline:none;}
+/* the required ~three lines of visual spacing before the session block */
+.p1-gap{height:58px;display:flex;flex-direction:column;justify-content:space-between;margin:4px 0 14px;}
+.p1-gap span{display:block;height:1px;background:linear-gradient(90deg,var(--line-soft),rgba(237,234,225,0));}
+.scope{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap;}
+.scope .scope-lbl{font-size:11px;color:var(--grey);}
+.scope .scope-btn{
+  font-size:11.5px;padding:3px 10px;border-radius:20px;border:1px solid var(--line-cool);
+  background:#fff;color:var(--darkblue);cursor:pointer;font-family:inherit;font-weight:600;
+  transition:.16s;line-height:1.6;
+}
+.scope .scope-btn:hover{background:var(--lightblue);}
+.scope .scope-btn.active{background:var(--darkblue);border-color:var(--darkblue);color:#fff;}
+.scope.hint-pop{box-shadow:0 0 0 3px rgba(197,164,109,.28);border-radius:20px;}
+.p1-sessions{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;}
+.p1-sessions .p1-lbl{display:block;font-size:13px;font-weight:600;color:var(--darkblue);margin-bottom:6px;}
+.p1-sessions input{
+  width:82px;padding:9px 11px;border:1px solid var(--line-cool);border-radius:9px;
+  font-family:inherit;font-size:14.5px;background:#fff;text-align:center;
+}
+.p1-sessions .sess-dash{font-size:15px;color:var(--grey);padding-bottom:10px;}
+.p1-subject input{font-size:16.5px;font-weight:600;padding:13px 15px;}
+.p1-block textarea.q-big{min-height:195px;font-size:15.5px;}
+@media (max-width:760px){
+  .p1-dayrow{grid-template-columns:1fr;}
+  .p1-sessions input{width:70px;}
+  .p1-block{padding:16px 15px 12px;}
+}
+
+/* ---- part two: format chips, rating scale, options ---- */
+.p2-q{border:1px solid var(--line-cool);border-radius:12px;padding:16px;margin-bottom:14px;background:#FCFCFD;}
+.p2-q.deleted{opacity:.75;}
+.p2-opts{display:grid;gap:10px;margin-top:10px;}
+.p2-opt{display:flex;align-items:center;gap:10px;}
+.p2-opt .opt-tag{
+  flex:none;width:26px;height:26px;border-radius:50%;background:var(--lightblue);
+  color:var(--darkblue);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+.p2-opt input{flex:1;min-width:0;}
+.p2-opt .opt-del{
+  flex:none;width:32px;height:32px;border-radius:8px;border:1px solid #EBCFCF;background:#fff;
+  color:var(--red);cursor:pointer;font-size:14px;line-height:1;
+}
+.p2-opt .opt-del:hover{background:#FDF2F2;}
+.p2-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.scale-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
+.scale{position:relative;display:inline-flex;}
+.scale input{position:absolute;opacity:0;width:0;height:0;}
+.scale span{
+  display:inline-flex;align-items:center;justify-content:center;min-width:46px;height:46px;
+  padding:0 12px;border-radius:50px;border:1px solid var(--line-cool);background:#fff;
+  font-size:14.5px;font-weight:600;color:var(--darkblue);cursor:pointer;transition:.16s;line-height:1.4;
+}
+.scale span:hover{border-color:#BCC9DA;background:#F8FAFC;}
+.scale input:checked+span{background:var(--darkblue);border-color:var(--darkblue);color:#fff;box-shadow:0 4px 12px rgba(29,53,87,.2);}
+.scale input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px;}
+
+/* ---- deleted question / training rows ---- */
+.del-list{margin-top:10px;}
+.del-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:9px 12px;border:1px dashed #D9D2C2;border-radius:10px;background:#FAF8F2;
+  font-size:13px;margin-bottom:8px;color:#4A5568;
+}
+.del-row .del-txt{flex:1;min-width:180px;line-height:1.7;}
+.section-tagline{font-size:12.5px;color:var(--grey);line-height:1.8;}
+
+/* ---- part one card shown to the participant ---- */
+.p1-card{
+  position:relative;border:1px solid #DCD3C0;border-radius:16px;padding:22px 22px 18px;
+  margin-bottom:20px;background:linear-gradient(165deg,#FFFDF7 0%,#FBF8F0 100%);
+  box-shadow:0 10px 26px rgba(20,36,58,.07);overflow:hidden;
+}
+.p1-card::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:5px;
+  background:linear-gradient(180deg,var(--gold),#E9DCBE);
+}
+.p1-card-top{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.p1-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;letter-spacing:.2px;
+}
+.p1-chip.light{background:#F3EDDF;color:#7A6437;}
+.p1-card-subject{
+  margin-top:18px;font-size:15px;font-weight:700;color:var(--darkblue);line-height:1.8;
+}
+.p1-card-q{font-size:16px;line-height:1.95;color:var(--navy);margin-top:10px;white-space:pre-line;}
+.p1-card-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--grey);}
+.p1-card-rate{margin-top:16px;padding-top:14px;border-top:1px dashed #E3DCC9;}
+@media (max-width:520px){ .p1-card{padding:17px 15px 14px;} }
+
+/* ---- designation line on the built-in certificate ---- */
+.cert-designation{font-size:clamp(10px,1.25vw,13.5px);color:#4A5568;margin-top:2px;line-height:1.8;}
 </style>
 <!-- supabase-js v2.45.4, vendored next to this page (110 KB, unmodified npm
      build: dist/umd/supabase.js). It is loaded WITHOUT defer/async so
@@ -802,6 +961,36 @@ function getPath(obj, path){
 }
 function isEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v||'').trim()); }
 function deepCopy(o){ return JSON.parse(JSON.stringify(o)); }
+function str(v){ return String(v === null || v === undefined ? '' : v); }
+
+/* Training dates are stored as ISO (YYYY-MM-DD, what <input type="date">
+   produces). Anything older that is not ISO is shown unchanged, so existing
+   free-text dates keep working. */
+function displayDate(v){
+  const s = str(v).trim();
+  if(!s) return '';
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return m[3] + '-' + m[2] + '-' + m[1];
+  return s;
+}
+function isoToday(){
+  const d = new Date();
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+}
+/* DD-MM-YYYY (what the old free-text date field stored) -> the ISO value an
+   <input type="date"> needs. Anything else is passed through untouched. */
+function toIsoDate(v){
+  const s = str(v).trim();
+  const m = s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if(m) return m[3] + '-' + m[2] + '-' + m[1];
+  return s;
+}
+/* "01-12-2026 – 03-12-2026" (or a single date when they are the same) */
+function dateRange(start, end){
+  const a = displayDate(start), b = displayDate(end);
+  if(a && b && a !== b) return a + ' – ' + b;
+  return a || b || '';
+}
 
 /* Toast */
 function toast(msg, type){
@@ -888,6 +1077,94 @@ const DRAFT_PREFIX= 'dti_draft_';
 const INSTITUTE   = 'ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ, ಬೆಂಗಳೂರು ನಗರ';
 const INSTITUTE_EN= 'District Training Institute, Bengaluru City';
 const RATINGS     = ['ಅತ್ಯುತ್ತಮ','ಉತ್ತಮ','ತೃಪ್ತಿಕರ','ಸಾಧಾರಣ'];
+const WEEKDAYS_KN = ['ಸೋಮವಾರ','ಮಂಗಳವಾರ','ಬುಧವಾರ','ಗುರುವಾರ','ಶುಕ್ರವಾರ','ಶನಿವಾರ','ಭಾನುವಾರ'];
+
+/* Feedback question formats for ಭಾಗ-2. `choice` = pick one of the configured
+   options, `rating` = a rating scale (its own, configurable number of
+   steps), `text` = a large free-text answer with no options at all. */
+const FB_FORMATS = {
+  choice: 'ಆಯ್ಕೆ (Choose)',
+  rating: 'ರೇಟಿಂಗ್ (Rating)',
+  text:   'ವಿವರಣಾತ್ಮಕ (Descriptive)'
+};
+
+/* The default ಭಾಗ-2 paper. It is preloaded into every new training and shown
+   when an older training has no ಭಾಗ-2 questions yet. Wording and options are
+   exactly those supplied by the institute. */
+const PART2_DEFAULT = [
+  {
+    id: 'p2_default_1',
+    text: 'ತರಬೇತಿಯ ಉದ್ದೇಶಗಳನ್ನು ಸಾಧಿಸಲಾಗಿದೆಯೇ ?',
+    format: 'choice',
+    options: ['ಹೌದು', 'ಇಲ್ಲ']
+  },
+  {
+    id: 'p2_default_2',
+    text: 'ನಿಮ್ಮ ವೃತ್ತಿ / ಕಾರ್ಯ ಕ್ಷೇತ್ರಕ್ಕೆ ತರಬೇತಿಯು ಹೇಗೆ ಸಹಕಾರಿಯಾಗಿದೆ ?',
+    format: 'choice',
+    options: ['ತುಂಬಾ ಉಪಯುಕ್ತ', 'ಉಪಯುಕ್ತ', 'ಸಾಧಾರಣ']
+  },
+  {
+    id: 'p2_default_3',
+    text: 'ಈ ತರಬೇತಿಯು ಪ್ರಾಯೋಗಿಕಾತ್ಮವಾಗಿತ್ತೆ ?',
+    format: 'choice',
+    options: ['ಪ್ರಾಯೋಗಿಕಾತ್ಮಕ', 'ಸೈದ್ಧಾಂತಿಕ (Theory)']
+  },
+  {
+    id: 'p2_default_4',
+    text: 'ಸಹ ಶಿಬಿರಾರ್ಥಿಗಳಿಂದ ಚರ್ಚೆಗಳು / ಕಲಿಕಾ ಸೌಲಭ್ಯಗಳು',
+    format: 'choice',
+    options: ['ಹೆಚ್ಚಿನ ಸೌಲಭ್ಯಗಳಾಯಿತು.', 'ಕಡಿಮೆ ಸೌಲಭ್ಯಗಳಾಯಿತು.']
+  },
+  {
+    id: 'p2_default_5',
+    text: 'ಬೋಧಕರು ಮತ್ತು ಸಂಪನ್ಮೂಲ ವ್ಯಕ್ತಿಗಳೊಂದಿಗಿನ ಸಂವಹನ ?',
+    format: 'choice',
+    options: ['ತೃಪ್ತಿಕರ', 'ಅತೃಪ್ತಿಕರ']
+  },
+  {
+    id: 'p2_default_6',
+    text: 'ತರಬೇತಿಯಿಂದ ಕಲಿತ 2 ಅಂಶಗಳು;',
+    format: 'text',
+    options: []
+  },
+  {
+    id: 'p2_default_7',
+    text: 'ತರಬೇತಿ ಕಾರ್ಯಕ್ರಮದ ಒಟ್ಟಾರೆ ಅಭಿಪ್ರಾಯ',
+    format: 'choice',
+    options: ['ಅತ್ಯುತ್ತಮ', 'ಉತ್ತಮ', 'ತೃಪ್ತಿಕರ', 'ಸಾಧಾರಣ']
+  },
+  {
+    id: 'p2_default_8',
+    text: 'ತರಬೇತಿ ಕಾರ್ಯಕುರಿತು ಸಲಹೆಗಳು ?',
+    format: 'text',
+    options: []
+  }
+];
+
+/* The only automatic certificate labels. Student Name, Designation and KGID
+   come from the participant's profile / submission; the dates and the name
+   come from the training. */
+const CERT_LABELS = [
+  { key:'studentName',   label:'Student Name' },
+  { key:'designation',   label:'Designation' },
+  { key:'kgid',          label:'KGID Number' },
+  { key:'trainingStart', label:'Training Start Date' },
+  { key:'trainingEnd',   label:'Training End Date' },
+  { key:'trainingName',  label:'Training Name' }
+];
+const CERT_LABEL_KEYS = CERT_LABELS.map(f => f.key);
+/* old designer keys -> the six supported labels */
+const CERT_KEY_ALIASES = {
+  studentName:'studentName',
+  designation:'designation',
+  kgid:'kgid',
+  trainingName:'trainingName',
+  trainingTitle:'trainingName',
+  trainingStart:'trainingStart',
+  trainingEnd:'trainingEnd',
+  trainingDate:'trainingStart'
+};
 
 /* ---- The built-in demo paper is gone ----
    Trainings, their questions and their answer keys now live in the database
@@ -1393,7 +1670,12 @@ function dropDraft(){
 function newDraft(user){
   return {
     stage:1,
-    details:{ email:'', name:user ? user.name : '', kgid:'' },
+    details:{
+      email: (user && user.email) || '',
+      name: user ? user.name : '',
+      kgid: user ? (user.kgid || '') : '',
+      designation: user ? (user.designation || '') : ''
+    },
     feedback:{ ratings:{}, answers:{} },
     answers:{}
   };
@@ -1425,15 +1707,139 @@ function unwrap(res){
   return res ? res.data : null;
 }
 
+/* ---- feedback normalisation ------------------------------------------
+   ಭಾಗ-1 and ಭಾಗ-2 live in their own jsonb columns (feedback_part1 /
+   feedback_part2, added by 20261127120000_training_system.sql). Trainings
+   created before that migration kept their feedback in feedback_sessions
+   (session ratings) and feedback_questions (radio/textarea). Those columns
+   are still read here and converted in memory, so no old record is lost and
+   an administrator who opens an old training sees its questions filled in.
+   ------------------------------------------------------------------- */
+function blankPart1Block(){
+  return {
+    id: uid('p1'),
+    day: '',
+    date: '',
+    sessionFrom: '',
+    sessionTo: '',
+    subject: '',
+    question: '',
+    lecturer: '',
+    deleted: false
+  };
+}
+
+function normalizePart1Block(b, i){
+  b = b || {};
+  const from = b.sessionFrom !== undefined ? b.sessionFrom : (b.sessionStart !== undefined ? b.sessionStart : b.from);
+  const to   = b.sessionTo   !== undefined ? b.sessionTo   : (b.sessionEnd   !== undefined ? b.sessionEnd   : b.to);
+  return {
+    id: str(b.id) || ('p1_legacy_' + (i + 1)),
+    day: str(b.day),
+    date: str(b.date),
+    sessionFrom: str(from),
+    sessionTo: str(to),
+    subject: str(b.subject !== undefined ? b.subject : b.heading),
+    question: str(b.question !== undefined ? b.question : b.text),
+    lecturer: str(b.lecturer),
+    deleted: !!b.deleted
+  };
+}
+
+/* old session ratings -> one ಭಾಗ-1 block per session */
+function legacyPart1FromSessions(sessions){
+  return (sessions || []).filter(function(s){
+    return s && (str(s.heading).trim() || str(s.topic).trim() || str(s.lecturer).trim());
+  }).map(function(s, i){
+    return normalizePart1Block({
+      id: 'p1_legacy_' + (i + 1),
+      sessionFrom: String(i + 1),
+      sessionTo: String(i + 1),
+      subject: s.heading || '',
+      question: s.topic || s.heading || '',
+      lecturer: s.lecturer || ''
+    }, i);
+  });
+}
+
+function normalizePart1(raw, legacySessions, preferRaw){
+  let list = Array.isArray(raw) ? raw.slice() : [];
+  if(!list.length && !preferRaw){
+    /* an older fallback save may have stored the new blocks in the legacy
+       jsonb column; detect that shape before converting real sessions */
+    const legacy = Array.isArray(legacySessions) ? legacySessions : [];
+    const looksLikeBlocks = legacy.some(function(s){
+      return s && (s.question !== undefined || s.subject !== undefined || s.day !== undefined || s.sessionFrom !== undefined);
+    });
+    list = looksLikeBlocks ? legacy : legacyPart1FromSessions(legacy);
+  }
+  return list.map(normalizePart1Block);
+}
+
+function normalizePart2Question(q, i){
+  q = q || {};
+  const rawFormat = str(q.format || q.type).toLowerCase();
+  let format = 'choice';
+  if(rawFormat === 'text' || rawFormat === 'textarea' || rawFormat === 'descriptive') format = 'text';
+  else if(rawFormat === 'rating' || rawFormat === 'scale') format = 'rating';
+  let options = Array.isArray(q.options)
+    ? q.options.map(function(o){ return str(o); })
+    : [];
+  if(format === 'text') options = [];
+  else{
+    options = options.filter(function(o){ return o !== ''; });
+    if(options.length < 2) options = format === 'rating' ? ['1','2','3','4','5'] : ['',''];
+  }
+  return {
+    id: str(q.id) || ('p2_legacy_' + (i + 1)),
+    text: str(q.text),
+    format: format,
+    options: options,
+    deleted: !!q.deleted
+  };
+}
+
+function legacyPart2FromQuestions(questions){
+  /* old rows use {type:'radio'|'textarea'}; a fallback save may already hold
+     the new {format, options} shape — normalizePart2Question reads both. */
+  return (questions || []).filter(function(q){
+    return q && str(q.text).trim();
+  }).map(function(q, i){
+    return normalizePart2Question(q, i);
+  });
+}
+
+function normalizePart2(raw, legacyQuestions, preferRaw){
+  let list = Array.isArray(raw) ? raw.slice() : [];
+  if(!list.length && !preferRaw) list = legacyPart2FromQuestions(legacyQuestions);
+  if(!list.length && !preferRaw) list = deepCopy(PART2_DEFAULT);
+  return list.map(normalizePart2Question);
+}
+
+function part1Active(t){
+  return ((t && t.feedback && t.feedback.part1) || []).filter(function(b){ return !b.deleted; });
+}
+function part2Active(t){
+  return ((t && t.feedback && t.feedback.part2) || []).filter(function(q){ return !q.deleted; });
+}
+
 /* ---- rows -> view shapes ---- */
 function trainingFromRow(row, questions){
+  const legacySessions  = Array.isArray(row.feedback_sessions)  ? row.feedback_sessions  : [];
+  const legacyQuestions = Array.isArray(row.feedback_questions) ? row.feedback_questions : [];
+  const startDate = toIsoDate(str(row.start_date) || str(row.date));
+  const endDate   = toIsoDate(str(row.end_date)) || startDate;
+  /* feedback_version = 1 marks a training saved with the new ಭಾಗ-1/ಭಾಗ-2
+     layout, so an intentionally empty section stays empty instead of
+     falling back to the legacy columns or the default paper. */
+  const newLayout = Number(row.feedback_version) > 0;
   return {
     id: row.id,
     title: row.title || '',
-    topic: row.topic || '',
+    /* kept so old records still render their one free-text date */
     date: row.date || '',
-    description: row.description || '',
-    category: row.category || '',
+    startDate: startDate,
+    endDate: endDate,
     accent: row.accent || '#1D3557',
     institute: row.institute || INSTITUTE,
     passing: Number(row.passing) || 70,
@@ -1453,8 +1859,11 @@ function trainingFromRow(row, questions){
     feedback: {
       day: row.feedback_day || '',
       notice: row.feedback_notice || '',
-      sessions: Array.isArray(row.feedback_sessions) ? row.feedback_sessions : [],
-      questions: Array.isArray(row.feedback_questions) ? row.feedback_questions : []
+      part1: normalizePart1(row.feedback_part1, legacySessions, newLayout),
+      part2: normalizePart2(row.feedback_part2, legacyQuestions, newLayout),
+      /* legacy shapes are kept for the administrator's old responses */
+      sessions: legacySessions,
+      questions: legacyQuestions
     }
   };
 }
@@ -1469,9 +1878,11 @@ function submissionFromRow(row){
     userName: row.official_name || '',
     trainingId: row.training_id,
     trainingTitle: t ? t.title : (row.training_title || ''),
-    trainingTopic: t ? t.topic : '',
-    trainingDate: t ? t.date : '',
+    trainingDate: t ? dateRange(t.startDate, t.endDate) : '',
     details: { name: row.official_name || '', email: row.email || '', kgid: row.kgid || '' },
+    /* the marking RPC copies the participant's designation from their
+       profile at submit time; older rows fall back to the profile below */
+    designation: row.designation || '',
     feedback: row.feedback || { ratings:{}, answers:{} },
     answers: row.answers || {},
     result: {
@@ -1589,11 +2000,11 @@ function loadPortalSettings(){
 function loadCertificateDesign(){
   return sb.from('certificate_design').select('*').maybeSingle().then(unwrap).then(function(row){
     if(!row) return null;
-    const design = {
+    const design = sanitizeCertDesign({
       useCustom: !!row.use_custom,
       aspect: Number(row.aspect) || 1.414,
       fields: Array.isArray(row.fields) ? row.fields : []
-    };
+    });
     certDesState.design = deepCopy(design);
     saveCertDesign(design);
     const path = row.background_path || '';
@@ -1736,6 +2147,100 @@ function bindPostRender(){
     };
     el.addEventListener('input', handler);
     el.addEventListener('change', handler);
+  });
+
+  /* ---- ಭಾಗ-1 editor: day / date / session range, Edit for All or One --- */
+  $$('[data-p1]').forEach(el => {
+    const apply = function(){
+      if(!state.editing || !state.editing.feedback) return;
+      const fb = state.editing.feedback;
+      const i = Number(el.getAttribute('data-p1'));
+      const f = el.getAttribute('data-p1f');
+      const block = (fb.part1 || [])[i];
+      if(!block) return;
+      block[f] = el.value;
+      const scopeField = (f === 'sessionFrom' || f === 'sessionTo') ? 'sessions' : f;
+      const mode = fb.scope && fb.scope[scopeField];
+      if(mode !== 'all') return;
+      (fb.part1 || []).forEach(function(other, j){
+        if(j === i || other.deleted) return;
+        if(scopeField === 'sessions'){
+          other.sessionFrom = block.sessionFrom;
+          other.sessionTo = block.sessionTo;
+          ['sessionFrom','sessionTo'].forEach(function(ff){
+            const inp = document.querySelector('[data-p1="' + j + '"][data-p1f="' + ff + '"]');
+            if(inp) inp.value = block[ff];
+          });
+        }else{
+          other[f] = el.value;
+          const inp = document.querySelector('[data-p1="' + j + '"][data-p1f="' + f + '"]');
+          if(inp) inp.value = el.value;
+        }
+      });
+    };
+    el.addEventListener('input', apply);
+    el.addEventListener('change', apply);
+    /* clicking a day / date / session field brings the All/One choice to
+       the administrator's attention */
+    el.addEventListener('focus', function(){
+      const scopeField = (el.getAttribute('data-p1f') === 'sessionFrom' ||
+                          el.getAttribute('data-p1f') === 'sessionTo')
+        ? 'sessions' : el.getAttribute('data-p1f');
+      if(scopeField !== 'day' && scopeField !== 'date' && scopeField !== 'sessions') return;
+      const scopeEl = el.closest('.p1-mini') || el.closest('.p1-sessions');
+      if(!scopeEl) return;
+      const box = scopeEl.querySelector('.scope');
+      if(!box) return;
+      box.classList.add('hint-pop');
+      setTimeout(function(){ box.classList.remove('hint-pop'); }, 1800);
+    });
+  });
+
+  /* ---- ಭಾಗ-2 editor: question format and number of options ---- */
+  $$('[data-p2fmt]').forEach(el => {
+    el.addEventListener('change', function(){
+      if(!state.editing || !state.editing.feedback) return;
+      const i = Number(el.getAttribute('data-p2fmt'));
+      const q = (state.editing.feedback.part2 || [])[i];
+      if(!q) return;
+      const next = el.value;
+      if(next === q.format) return;
+      if(next === 'text'){
+        q.format = 'text';
+        q.options = [];
+      }else{
+        q.format = next;
+        const kept = (q.options || []).map(function(o){ return str(o).trim(); }).filter(Boolean);
+        if(kept.length >= 2) q.options = kept;
+        else q.options = next === 'rating' ? ['1','2','3','4','5'] : ['',''];
+      }
+      render();
+    });
+  });
+
+  $$('[data-p2count]').forEach(el => {
+    el.addEventListener('change', function(){
+      if(!state.editing || !state.editing.feedback) return;
+      const i = Number(el.getAttribute('data-p2count'));
+      const q = (state.editing.feedback.part2 || [])[i];
+      if(!q || q.format === 'text') return;
+      const n = Math.max(2, Math.min(20, Number(el.value) || 2));
+      const opts = q.options || (q.options = []);
+      while(opts.length < n) opts.push(q.format === 'rating' ? String(opts.length + 1) : '');
+      while(opts.length > n) opts.pop();
+      render();
+    });
+  });
+
+  /* ---- ಭಾಗ-1 answers (the participant rates each block) ---- */
+  $$('input[data-p1rate]').forEach(function(el){
+    el.addEventListener('change', function(){
+      if(!state.draft) return;
+      if(!state.draft.feedback) state.draft.feedback = { ratings:{}, answers:{} };
+      if(!state.draft.feedback.ratings) state.draft.feedback.ratings = {};
+      state.draft.feedback.ratings[el.getAttribute('data-p1rate')] = el.value;
+      persistDraft();
+    });
   });
 
   $$('[data-det]').forEach(el => {
@@ -1951,7 +2456,7 @@ function viewProfileDetails(){
         '<input type="text" name="officialName" value="' + esc(suggested) + '" autocomplete="name" required></label>' +
       '<label class="field"><span>ಕೆ.ಜಿ.ಐ.ಡಿ ಸಂಖ್ಯೆ *</span>' +
         '<input type="text" name="kgid" value="' + esc(p.kgid || '') + '" placeholder="ಉದಾ: KGID123456" required></label>' +
-      '<label class="field"><span>ಹುದ್ದೆ *</span>' +
+      '<label class="field"><span>ಹುದ್ದೆ (Designation) *</span>' +
         '<input type="text" name="designation" value="' + esc(p.designation || '') + '" placeholder="ಉದಾ: ಗ್ರೇಡ್-2 ಕಾರ್ಯದರ್ಶಿ" required></label>' +
       '<label class="field"><span>ಇಲಾಖೆ</span>' +
         '<input type="text" name="department" value="' + esc(p.department || '') + '" placeholder="ಉದಾ: ಕರ್ನಾಟಕ ಸರ್ಕಾರ"></label>' +
@@ -2051,12 +2556,12 @@ function viewStudentDashboard(u, subs, certs, latest){
       '<div class="tc-top">' +
         '<div class="tc-eyebrow">' +
           statusBadge +
-          '<span class="badge grey">' + esc(t.category || 'ಸಾಮಾನ್ಯ') + '</span>' +
+          '<span class="badge grey">' + esc(dateRange(t.startDate, t.endDate) || 'ದಿನಾಂಕ ನಿಗದಿಯಾಗಿಲ್ಲ') + '</span>' +
         '</div>' +
         '<div class="tc-title">' + esc(t.title) + '</div>' +
-        '<div class="tc-topic">“' + esc(t.topic) + '”</div>' +
         '<div class="tc-meta">' +
-          '<div><div class="m-label">ದಿನಾಂಕ</div><div class="m-value">' + esc(t.date) + '</div></div>' +
+          '<div><div class="m-label">ತರಬೇತಿ ಆರಂಭ</div><div class="m-value">' + esc(displayDate(t.startDate) || '—') + '</div></div>' +
+          '<div><div class="m-label">ತರಬೇತಿ ಅಂತ್ಯ</div><div class="m-value">' + esc(displayDate(t.endDate) || '—') + '</div></div>' +
           '<div><div class="m-label">ಸಂಸ್ಥೆ</div><div class="m-value">' + esc(t.institute || INSTITUTE) + '</div></div>' +
           '<div><div class="m-label">ಪ್ರಶ್ನೆಗಳು</div><div class="m-value">' + t.questions.length + ' MCQ</div></div>' +
           '<div><div class="m-label">ಉತ್ತೀರ್ಣ ಮಿತಿ</div><div class="m-value">' + (t.passing || 70) + '%</div></div>' +
@@ -2133,8 +2638,12 @@ function openTraining(id){
 
   const d = readDraft();
   state.draft = d || newDraft(u);
-  if(!state.draft.details) state.draft.details = { email:'', name:u.name, kgid:'' };
+  if(!state.draft.details) state.draft.details = { email:'', name:u.name, kgid:'', designation:'' };
   if(!state.draft.details.name) state.draft.details.name = u.name;
+  if(!state.draft.details.kgid) state.draft.details.kgid = u.kgid || '';
+  /* the designation saved on the profile is the default; the participant may
+     correct it for this training and it is written back on the next step */
+  if(!state.draft.details.designation) state.draft.details.designation = u.designation || '';
   if(!state.draft.feedback) state.draft.feedback = { ratings:{}, answers:{} };
   if(!state.draft.answers) state.draft.answers = {};
 
@@ -2161,20 +2670,23 @@ function isDetailsComplete(){
   const d = state.draft && state.draft.details;
   if(!d) return false;
   return !!(String(d.email||'').trim() && isEmail(d.email) &&
-            String(d.name||'').trim() && String(d.kgid||'').trim());
+            String(d.name||'').trim() && String(d.kgid||'').trim() &&
+            String(d.designation||'').trim());
 }
+/* ಭಾಗ-1: every active question block needs its rating.
+   ಭಾಗ-2: choice/rating need a chosen option, descriptive needs text. */
 function isFeedbackComplete(t){
   if(!state.draft || !t) return false;
   const fb = state.draft.feedback || {};
-  const sessions = (t.feedback && t.feedback.sessions) || [];
-  for(let i=0;i<sessions.length;i++){
-    if(!fb.ratings || !fb.ratings[String(i)]) return false;
+  const blocks = part1Active(t);
+  for(let i=0;i<blocks.length;i++){
+    if(!(fb.ratings || {})[blocks[i].id]) return false;
   }
-  const qs = (t.feedback && t.feedback.questions) || [];
+  const qs = part2Active(t);
   for(let i=0;i<qs.length;i++){
     const q = qs[i];
-    const val = fb.answers ? fb.answers[q.id] : '';
-    if(q.type === 'textarea'){
+    const val = (fb.answers || {})[q.id];
+    if(q.format === 'text'){
       if(!String(val||'').trim()) return false;
     }else if(!val){
       return false;
@@ -2222,11 +2734,11 @@ function viewWorkflowShell(u){
     '</aside>' +
     '<div class="sidebar-overlay" id="sidebarOverlay" data-action="close-sidebar"></div>' +
     '<div class="main-col">' +
-      topbar(trunc(t.title, 46), 'ದಿನಾಂಕ: ' + t.date, u) +
+      topbar(trunc(t.title, 46), 'ತರಬೇತಿ ಅವಧಿ: ' + (dateRange(t.startDate, t.endDate) || '—'), u) +
       '<main class="main">' +
         '<div class="page-head">' +
           '<h2>' + esc(t.title) + '</h2>' +
-          '<div class="ph-sub">' + esc(t.topic) + '</div>' +
+          '<div class="ph-sub">ತರಬೇತಿ ಅವಧಿ: ' + esc(dateRange(t.startDate, t.endDate) || '—') + ' · ' + esc(t.institute || INSTITUTE) + '</div>' +
         '</div>' +
         '<div class="steps">' + stepsHtml + '</div>' +
         content +
@@ -2257,9 +2769,15 @@ function stageDetails(t){
       '<label class="field"><span>ಕೆ.ಜಿ.ಐ.ಡಿ / ಹೆಚ್‌ ಆರ್‌ ಎಂಎಸ್‌ ಸಂಖ್ಯೆ *</span>' +
         '<input type="text" data-det="kgid" value="' + esc(d.kgid||'') + '" placeholder="ಉದಾ: KGID123456">' +
       '</label>' +
+      '<label class="field"><span>ಹುದ್ದೆ (Designation) *</span>' +
+        '<input type="text" data-det="designation" value="' + esc(d.designation||'') + '" placeholder="ಉದಾ: ಗ್ರೇಡ್-2 ಕಾರ್ಯದರ್ಶಿ">' +
+        '<div class="field-hint">ಈ ಹುದ್ದೆಯೇ ನಿಮ್ಮ ಪ್ರಮಾಣಪತ್ರದಲ್ಲಿ ಮುದ್ರಣವಾಗುತ್ತದೆ.</div>' +
+      '</label>' +
       '<div class="field"><span>ತರಬೇತಿ ವಿವರ</span>' +
         '<div class="card-soft" style="font-size:13.5px;line-height:1.8;">' +
-          '<div><b>ದಿನಾಂಕ:</b> ' + esc(t.date) + '</div>' +
+          '<div><b>ತರಬೇತಿ:</b> ' + esc(t.title) + '</div>' +
+          '<div><b>ಆರಂಭ:</b> ' + esc(displayDate(t.startDate) || '—') + '</div>' +
+          '<div><b>ಅಂತ್ಯ:</b> ' + esc(displayDate(t.endDate) || '—') + '</div>' +
           '<div><b>ಸಂಸ್ಥೆ:</b> ' + esc(t.institute || INSTITUTE) + '</div>' +
         '</div>' +
       '</div>' +
@@ -2272,10 +2790,11 @@ function stageDetails(t){
   '</div>';
 }
 
-/* ---------- STAGE 2 : FEEDBACK ---------- */
+/* ---------- STAGE 2 : FEEDBACK (ಭಾಗ-1 + ಭಾಗ-2) ---------- */
 function stageFeedback(t){
-  const fb = t.feedback || { sessions:[], questions:[] };
+  const fb = t.feedback || { part1:[], part2:[], notice:'' };
   const d = state.draft.feedback || { ratings:{}, answers:{} };
+
   /* the administrator's notice goes above everything else */
   const noticeText = String(fb.notice || '').trim();
   const noticeHtml = noticeText
@@ -2288,57 +2807,33 @@ function stageFeedback(t){
       '</div>'
     : '';
 
-  const sessionsHtml = (fb.sessions || []).map((s, i) => {
-    const selected = (d.ratings || {})[String(i)] || '';
-    const pills = RATINGS.map(r =>
-      '<label class="pill"><input type="radio" name="rate_' + i + '" value="' + esc(r) + '"' +
-        (selected === r ? ' checked' : '') + '><span>' + esc(r) + '</span></label>'
-    ).join('');
-    return '<div class="session-block">' +
-      '<div class="ss-head">' + esc(s.heading) + '</div>' +
-      '<div class="ss-topic">' + esc(s.topic) + '</div>' +
-      '<div class="ss-lect">' + esc(s.lecturer) + '</div>' +
-      '<div class="rating-label">ಅಧಿವೇಶನದ ಮೌಲ್ಯಮಾಪನ *</div>' +
-      '<div class="rating-row">' + pills + '</div>' +
-    '</div>';
-  }).join('');
+  const blocks = part1Active(t);
+  const part1Html = blocks.length
+    ? blocks.map(function(b, i){ return part1ParticipantCard(b, i, d); }).join('')
+    : '<p class="muted small" style="margin:0;">ಈ ತರಬೇತಿಗೆ ಭಾಗ-1 ಪ್ರಶ್ನೆಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ.</p>';
 
-  const questionsHtml = (fb.questions || []).map((q, i) => {
-    const val = (d.answers || {})[q.id];
-    let control = '';
-    if(q.type === 'textarea'){
-      control = '<textarea data-fb="' + esc(q.id) + '" rows="4" placeholder="ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ...">' + esc(val || '') + '</textarea>';
-    }else{
-      control = '<div class="rating-row">' + (q.options||[]).filter(Boolean).map((o, j) =>
-        '<label class="pill"><input type="radio" name="fb_' + esc(q.id) + '" value="' + esc(o) + '"' +
-          (val === o ? ' checked' : '') +
-          ' data-fbgroup="' + esc(q.id) + '"><span>' + esc(o) + '</span></label>'
-      ).join('') + '</div>';
-    }
-    return '<div class="q-card" style="box-shadow:none;">' +
-      '<div class="q-head"><div class="q-num">' + (i+1) + '</div>' +
-        '<div class="q-text">' + esc(q.text) + '</div>' +
-      '</div>' + control +
-    '</div>';
-  }).join('');
+  const qs = part2Active(t);
+  const part2Html = qs.length
+    ? qs.map(function(q, i){ return part2ParticipantCard(q, i, d); }).join('')
+    : '<p class="muted small" style="margin:0;">ಈ ತರಬೇತಿಗೆ ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ.</p>';
 
   return '<div class="stack">' +
     noticeHtml +
     '<div class="card">' +
       '<div class="section-head">' +
-        '<span class="sh-badge">ಭಾಗ-01</span>' +
+        '<span class="sh-badge">ಭಾಗ-1</span>' +
         '<span class="sh-title">ದಿನದ ಹಿಮ್ಮಾಹಿತಿ</span>' +
         '<span class="spacer"></span>' +
-        '<span class="badge grey">' + esc(fb.day || ('ದಿನ- ' + t.date)) + '</span>' +
+        '<span class="badge grey">' + esc(dateRange(t.startDate, t.endDate) || '—') + '</span>' +
       '</div>' +
-      sessionsHtml +
+      part1Html +
     '</div>' +
     '<div class="card">' +
       '<div class="section-head">' +
         '<span class="sh-badge">ಭಾಗ-2</span>' +
         '<span class="sh-title">ತರಬೇತಿ ಉಪಯುಕ್ತತೆ ಕುರಿತು ಹಿಮ್ಮಾಹಿತಿ</span>' +
       '</div>' +
-      questionsHtml +
+      part2Html +
     '</div>' +
     '<div class="card">' +
       '<div class="form-msg" id="stageMsg"></div>' +
@@ -2347,6 +2842,60 @@ function stageFeedback(t){
         '<button class="btn btn-primary" data-action="stage-next">ಮುಂದಿನ ಹಂತ →</button>' +
       '</div>' +
     '</div>' +
+  '</div>';
+}
+
+/* one ಭಾಗ-1 block exactly as the administrator laid it out */
+function part1ParticipantCard(b, i, d){
+  const selected = (d.ratings || {})[b.id] || '';
+  const pills = RATINGS.map(function(r){
+    return '<label class="pill"><input type="radio" name="p1rate_' + esc(b.id) + '" value="' + esc(r) + '"' +
+      ' data-p1rate="' + esc(b.id) + '"' + (selected === r ? ' checked' : '') +
+      '><span>' + esc(r) + '</span></label>';
+  }).join('');
+  const sess = (str(b.sessionFrom) || str(b.sessionTo))
+    ? 'ಅಧಿವೇಶನ ' + esc(b.sessionFrom || '?') + ' – ' + esc(b.sessionTo || b.sessionFrom || '?')
+    : '';
+  return '<div class="p1-card">' +
+    '<div class="p1-card-top">' +
+      (b.day ? '<span class="p1-chip">' + esc(b.day) + '</span>' : '') +
+      (b.date ? '<span class="p1-chip light">' + esc(displayDate(b.date)) + '</span>' : '') +
+      (sess ? '<span class="p1-chip light">' + sess + '</span>' : '') +
+    '</div>' +
+    (b.subject ? '<div class="p1-card-subject">ವಿಷಯ: ' + esc(b.subject) + '</div>' : '') +
+    '<div class="p1-card-q">' + esc(b.question || ('ಪ್ರಶ್ನೆ ' + (i + 1))) + '</div>' +
+    (str(b.lecturer).trim() ? '<div class="p1-card-meta"><span><b>ಉಪನ್ಯಾಸಕರು:</b> ' + esc(b.lecturer) + '</span></div>' : '') +
+    '<div class="p1-card-rate">' +
+      '<div class="rating-label">ನಿಮ್ಮ ಅಭಿಪ್ರಾಯ *</div>' +
+      '<div class="rating-row">' + pills + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+/* one ಭಾಗ-2 question: choose / rating / descriptive */
+function part2ParticipantCard(q, i, d){
+  const val = (d.answers || {})[q.id];
+  let control = '';
+  if(q.format === 'text'){
+    control = '<textarea class="q-big" data-fb="' + esc(q.id) + '" rows="6" ' +
+      'placeholder="ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ...">' + esc(val || '') + '</textarea>';
+  }else if(q.format === 'rating'){
+    control = '<div class="scale-row">' + (q.options || []).map(function(o){
+      return '<label class="scale"><input type="radio" name="fb_' + esc(q.id) + '" value="' + esc(o) + '"' +
+        ' data-fbgroup="' + esc(q.id) + '"' + (val === o ? ' checked' : '') +
+        '><span>' + esc(o) + '</span></label>';
+    }).join('') + '</div>';
+  }else{
+    control = '<div class="rating-row">' + (q.options || []).map(function(o){
+      return '<label class="pill"><input type="radio" name="fb_' + esc(q.id) + '" value="' + esc(o) + '"' +
+        ' data-fbgroup="' + esc(q.id) + '"' + (val === o ? ' checked' : '') +
+        '><span>' + esc(o) + '</span></label>';
+    }).join('') + '</div>';
+  }
+  return '<div class="q-card" style="box-shadow:none;">' +
+    '<div class="q-head"><div class="q-num">' + (i + 1) + '</div>' +
+      '<div class="q-text">' + esc(q.text) + '</div>' +
+    '</div>' + control +
   '</div>';
 }
 
@@ -2384,10 +2933,10 @@ function stageAssessment(t, sub){
       '<div class="row" style="align-items:center;">' +
         '<div style="flex:1;min-width:200px;">' +
           '<h2 style="margin:0 0 4px;font-size:19px;">ಪ್ರವೇಶ ನಂತರ ಪರೀಕ್ಷೆ</h2>' +
-          '<div class="small" style="color:#3A4658;line-height:1.8;">“' + esc(t.topic) + '”</div>' +
+          '<div class="small" style="color:#3A4658;line-height:1.8;">' + esc(t.title) + '</div>' +
         '</div>' +
         '<div style="text-align:right;">' +
-          '<div class="badge blue">ದಿನಾಂಕ: ' + esc(t.date) + '</div>' +
+          '<div class="badge blue">ಅವಧಿ: ' + esc(dateRange(t.startDate, t.endDate) || '—') + '</div>' +
           '<div class="badge gold" style="margin-top:6px;">ಒಟ್ಟು ' + t.questions.length + ' ಅಂಕಗಳು</div>' +
         '</div>' +
       '</div>' +
@@ -2473,12 +3022,32 @@ function stageCertificate(t, sub){
     '</div>';
 }
 
+/* The participant's designation: the one stored with the submission (the
+   marking RPC copies it from the profile), then the profile itself. Existing
+   submissions keep working because their profile is always available. */
+function designationFor(sub){
+  /* what the participant typed at the details stage is captured with the
+     submission; the snapshot the marking RPC took from the profile and the
+     profile itself are the fallbacks for older rows */
+  if(sub && sub.feedback && str(sub.feedback.designation).trim()) return str(sub.feedback.designation);
+  if(sub && str(sub.designation).trim()) return str(sub.designation);
+  if(!sub) return '';
+  const u = DB.users.find(function(x){ return x.id === sub.userId; });
+  if(u && str(u.designation).trim()) return str(u.designation);
+  if(AUTH.profile && AUTH.profile.id === sub.userId) return str(AUTH.profile.designation);
+  return '';
+}
+
 function certificateHTML(t, sub, certNo){
   const cfg = getActiveCertDesign();
   if(cfg.design && cfg.design.useCustom && cfg.bg){
     return renderCustomCertificate(t, sub, certNo, cfg.design, cfg.bg);
   }
   const name = sub.details && sub.details.name ? sub.details.name : sub.userName;
+  const desig = designationFor(sub);
+  const kgid = (sub.details && sub.details.kgid) || sub.kgid || '';
+  const start = displayDate(t.startDate) || displayDate(t.date);
+  const end = displayDate(t.endDate) || start;
   const r = sub.result;
   return '<div class="cert" id="cert">' +
     '<div class="cert-corner tl"></div><div class="cert-corner tr"></div>' +
@@ -2495,12 +3064,17 @@ function certificateHTML(t, sub, certNo){
       '<div class="cert-body">' +
         '<div class="cert-lead">ಈ ಪ್ರಮಾಣಪತ್ರವನ್ನು</div>' +
         '<div class="cert-name">' + esc(name) + '</div>' +
+        (desig || kgid
+          ? '<div class="cert-designation">' +
+              esc(desig || '—') + (kgid ? ' · ಕೆ.ಜಿ.ಐ.ಡಿ: ' + esc(kgid) : '') +
+            '</div>'
+          : '') +
         '<div class="cert-lead">ಅವರು ಈ ಕೆಳಗಿನ ತರಬೇತಿ ಕಾರ್ಯಕ್ರಮವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಪೂರ್ಣಗೊಳಿಸಿದ್ದಕ್ಕಾಗಿ ನೀಡಲಾಗಿದೆ.</div>' +
-        '<div class="cert-topic">“' + esc(t.topic) + '”</div>' +
+        '<div class="cert-topic">“' + esc(t.title) + '”</div>' +
         '<div class="cert-meta">' +
-          '<div>ದಿನಾಂಕ: <b>' + esc(t.date) + '</b></div>' +
+          '<div>ತರಬೇತಿ ಆರಂಭ: <b>' + esc(start || '—') + '</b></div>' +
+          '<div>ತರಬೇತಿ ಅಂತ್ಯ: <b>' + esc(end || '—') + '</b></div>' +
           '<div>ಅಂಕಗಳು: <b>' + r.marks + ' / ' + r.total + '</b></div>' +
-          '<div>ಶೇಕಡಾವಾರು: <b>' + r.pct + '%</b></div>' +
         '</div>' +
       '</div>' +
       '<div class="cert-foot">' +
@@ -2554,10 +3128,16 @@ function submitAssessment(){
   showStageMsg('ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…', 'ok');
   toast('ಪರೀಕ್ಷೆ ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…', 'info');
 
+  /* The marking RPC stores the designation from the profile (which the
+     details stage writes back). It is copied into the feedback payload as a
+     backup so the certificate always has it. */
+  const feedbackPayload = deepCopy(state.draft.feedback || { ratings:{}, answers:{} });
+  feedbackPayload.designation = String(details.designation || u.designation || '').trim();
+
   const payload = {
     p_training_id: t.id,
     p_answers: deepCopy(answers),
-    p_feedback: deepCopy(state.draft.feedback || { ratings:{}, answers:{} }),
+    p_feedback: feedbackPayload,
     p_official_name: String(details.name || u.name || '').trim(),
     p_kgid: String(details.kgid || u.kgid || '').trim(),
     p_email: String(details.email || u.email || '').trim()
@@ -2638,7 +3218,7 @@ function viewAdminShell(u){
     overview:'ನಿರ್ವಾಹಕ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
     trainings:'ತರಬೇತಿ ನಿರ್ವಹಣೆ',
     results:'ವಿದ್ಯಾರ್ಥಿ ಫಲಿತಾಂಶಗಳು',
-    feedback:'ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರತಿಕ್ರಿಯೆಗಳು',
+    feedback:'ಪ್ರತಿಕ್ರಿಯೆ ಉತ್ತರಗಳು',
     certificates:'ಪ್ರಮಾಣಪತ್ರ ದಾಖಲೆಗಳು',
     accounts:'ವಿದ್ಯಾರ್ಥಿ ಖಾತೆಗಳು',
     certdesigner:'Certificate Designer',
@@ -2662,7 +3242,7 @@ function viewAdminShell(u){
 }
 
 function adminOverview(){
-  const totalTrainings = DB.trainings.length;
+  const totalTrainings = DB.trainings.filter(function(t){ return !t.archived; }).length;
   const totalParticipants = new Set(DB.submissions.map(s => s.userId)).size;
   const assessed = DB.submissions.length;
   const certified = DB.certificates.length;
@@ -2707,26 +3287,30 @@ function adminOverview(){
 function adminTrainings(){
   if(state.editing) return adminTrainingForm();
 
-  const list = DB.trainings.map(t => {
+  const active  = DB.trainings.filter(function(t){ return !t.archived; });
+  const deleted = DB.trainings.filter(function(t){ return t.archived; });
+
+  const activeList = active.map(function(t){
     const subs = submissionsForTraining(t.id).length;
+    const p1 = ((t.feedback && t.feedback.part1) || []).filter(function(b){ return !b.deleted; }).length;
+    const p2 = ((t.feedback && t.feedback.part2) || []).filter(function(q){ return !q.deleted; }).length;
     return '<div class="card" style="margin-bottom:16px;">' +
       '<div class="card-head" style="margin-bottom:10px;">' +
         '<div style="flex:1;min-width:240px;">' +
           '<h3 style="margin-bottom:6px;color:var(--navy);">' + esc(t.title) + '</h3>' +
-          '<div class="small muted" style="line-height:1.8;">' + esc(trunc(t.topic, 130)) + '</div>' +
+          '<div class="small muted" style="line-height:1.8;">ತರಬೇತಿ ಅವಧಿ: ' +
+            esc(dateRange(t.startDate, t.endDate) || '—') + '</div>' +
         '</div>' +
-        '<span class="badge grey">' + esc(t.date) + '</span>' +
+        (t.published !== false
+          ? '<span class="badge green">ಪ್ರಕಟಿತ</span>'
+          : '<span class="badge gold">ಪ್ರಕಟಿತವಲ್ಲ</span>') +
       '</div>' +
       '<div class="row" style="gap:8px;margin-bottom:14px;">' +
-        (t.archived
-          ? '<span class="badge grey">ಸಂಗ್ರಹಿತ</span>'
-          : (t.published !== false
-              ? '<span class="badge green">ಪ್ರಕಟಿತ</span>'
-              : '<span class="badge gold">ಪ್ರಕಟಿತವಲ್ಲ</span>')) +
-        '<span class="badge blue">' + t.questions.length + ' ಪ್ರಶ್ನೆಗಳು</span>' +
+        '<span class="badge blue">' + t.questions.length + ' MCQ</span>' +
         '<span class="badge gold">ಉತ್ತೀರ್ಣ ' + (t.passing||70) + '%</span>' +
+        '<span class="badge grey">ಭಾಗ-1: ' + p1 + '</span>' +
+        '<span class="badge grey">ಭಾಗ-2: ' + p2 + '</span>' +
         '<span class="badge grey">' + subs + ' ಸಲ್ಲಿಕೆಗಳು</span>' +
-        '<span class="badge grey">' + ((t.feedback && t.feedback.questions) ? t.feedback.questions.length : 0) + ' ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆಗಳು</span>' +
       '</div>' +
       '<div class="row">' +
         '<button class="btn btn-ghost btn-sm" data-action="preview-training" data-id="' + esc(t.id) + '">ಮುನ್ನೋಟ</button>' +
@@ -2734,20 +3318,38 @@ function adminTrainings(){
         (t.published !== false
           ? '<button class="btn btn-ghost btn-sm" data-action="unpublish-training" data-id="' + esc(t.id) + '">ಪ್ರಕಟನೆ ನಿಲ್ಲಿಸಿ</button>'
           : '<button class="btn btn-ghost btn-sm" data-action="publish-training" data-id="' + esc(t.id) + '">ಪ್ರಕಟಿಸಿ</button>') +
-        (t.archived
-          ? '<button class="btn btn-ghost btn-sm" data-action="unarchive-training" data-id="' + esc(t.id) + '">ಮರುಸಕ್ರಿಯಗೊಳಿಸಿ</button>'
-          : '<button class="btn btn-ghost btn-sm" data-action="archive-training" data-id="' + esc(t.id) + '">ಸಂಗ್ರಹಿಸಿ</button>') +
         '<button class="btn btn-danger btn-sm" data-action="delete-training" data-id="' + esc(t.id) + '">ಅಳಿಸಿ</button>' +
       '</div>' +
     '</div>';
   }).join('');
 
+  const deletedList = deleted.map(function(t){
+    const subs = submissionsForTraining(t.id).length;
+    return '<div class="del-row">' +
+      '<span class="del-txt"><b>' + esc(t.title) + '</b><br>' +
+        '<span class="tiny muted">ಅವಧಿ: ' + esc(dateRange(t.startDate, t.endDate) || '—') +
+        ' · ' + subs + ' ಸಲ್ಲಿಕೆಗಳು</span></span>' +
+      '<div class="row" style="gap:6px;">' +
+        '<button class="btn btn-ghost btn-sm" data-action="training-restore" data-id="' + esc(t.id) + '">ಮರುಸ್ಥಾಪಿಸಿ</button>' +
+        '<button class="btn btn-danger btn-sm" data-action="training-purge" data-id="' + esc(t.id) + '">ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಿ</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
   return '' +
-  '<div class="page-head"><h2>ತರಬೇತಿ ನಿರ್ವಹಣೆ</h2><div class="ph-sub">ತರಬೇತಿ ಕಾರ್ಯಕ್ರಮಗಳನ್ನು ಸೇರಿಸಿ, ಸಂಪಾದಿಸಿ ಅಥವಾ ಅಳಿಸಿ</div></div>' +
+  '<div class="page-head"><h2>ತರಬೇತಿ ನಿರ್ವಹಣೆ</h2>' +
+    '<div class="ph-sub">ತರಬೇತಿ, ಭಾಗ-1 ಮತ್ತು ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳನ್ನು ಇಲ್ಲಿ ನಿರ್ವಹಿಸಿ</div></div>' +
   '<div class="row" style="margin-bottom:18px;">' +
     '<button class="btn btn-primary" data-action="new-training">+ ಹೊಸ ತರಬೇತಿ ಸೇರಿಸಿ</button>' +
   '</div>' +
-  (list || '<div class="card center muted">ಯಾವುದೇ ತರಬೇತಿಗಳು ಇಲ್ಲ.</div>');
+  (activeList || '<div class="card center muted">ಯಾವುದೇ ಸಕ್ರಿಯ ತರಬೇತಿಗಳು ಇಲ್ಲ.</div>') +
+  (deleted.length
+    ? '<div class="card" style="margin-top:6px;">' +
+        '<div class="subhead" style="margin-top:0;"><h3>ಅಳಿಸಿದ ತರಬೇತಿಗಳು</h3>' +
+          '<span class="muted small">ಮರುಸ್ಥಾಪಿಸಬಹುದು — ದಾಖಲೆಗಳು ಅಳಿಸಿಹೋಗಿಲ್ಲ</span></div>' +
+        '<div class="del-list">' + deletedList + '</div>' +
+      '</div>'
+    : '');
 }
 
 function blankTrainingDraft(){
@@ -2755,35 +3357,43 @@ function blankTrainingDraft(){
     isNew:true,
     id:'',
     title:'',
-    topic:'',
-    date:'',
-    description:'',
-    category:'',
+    startDate:'',
+    endDate:'',
     accent:'#1D3557',
     institute:INSTITUTE,
     passing:70,
     published:true,
     archived:false,
-    feedback:{ day:'', notice:'', sessions:[{ heading:'', topic:'', lecturer:'' }], questions:[] },
+    feedback:{
+      notice:'',
+      part1:[ blankPart1Block() ],
+      part2:deepCopy(PART2_DEFAULT),
+      /* Edit for All / Edit for One is chosen per field, per editor session */
+      scope:{ day:'one', date:'one', sessions:'one' }
+    },
     questions:[{ id:uid('q'), text:'', options:['','','',''], correct:0, marks:1 }]
   };
 }
 
 function draftFromTraining(t){
+  const fb = t.feedback || {};
   return {
     isNew:false,
     id:t.id,
     title:t.title,
-    topic:t.topic,
-    date:t.date,
-    description:t.description || '',
-    category:t.category || '',
+    startDate: t.startDate || '',
+    endDate: t.endDate || '',
     accent:t.accent || '#1D3557',
     institute:t.institute || INSTITUTE,
     passing:Number(t.passing) || 70,
     published: t.published !== false,
     archived: !!t.archived,
-    feedback: deepCopy(Object.assign({ day:'', notice:'', sessions:[], questions:[] }, t.feedback || {})),
+    feedback: {
+      notice: str(fb.notice),
+      part1: deepCopy(fb.part1 || []),
+      part2: deepCopy(fb.part2 || []),
+      scope:{ day:'one', date:'one', sessions:'one' }
+    },
     /* The answer key is not readable from the browser, so an existing
        training opens with "not set" (null) on each question. The admin
        must pick the correct option again to change the key; leaving it
@@ -2798,46 +3408,194 @@ function draftFromTraining(t){
   };
 }
 
+/* ---- ಭಾಗ-1 editor -------------------------------------------------------
+   Day, date and session range can each be edited for every block at once
+   ("Edit for All") or for one block only ("Edit for One"). The choice is
+   made right under the field, and clicking the field highlights it.
+   ---------------------------------------------------------------------- */
+function p1ScopeControl(fieldKey, mode){
+  const one = mode !== 'all';
+  return '<div class="scope' + (one ? '' : ' all') + '" data-scope-for="' + esc(fieldKey) + '">' +
+    '<span class="scope-lbl">ಸಂಪಾದನೆ:</span>' +
+    '<button type="button" class="scope-btn' + (one ? ' active' : '') + '"' +
+      ' data-action="p1-scope" data-f="' + esc(fieldKey) + '" data-mode="one">ಒಂದಕ್ಕೆ (Edit for One)</button>' +
+    '<button type="button" class="scope-btn' + (one ? '' : ' active') + '"' +
+      ' data-action="p1-scope" data-f="' + esc(fieldKey) + '" data-mode="all">ಎಲ್ಲಕ್ಕೂ (Edit for All)</button>' +
+  '</div>';
+}
+
+function p1AdminBlock(b, i, activeNo, scope){
+  scope = scope || {};
+  return '<div class="p1-block">' +
+    '<div class="p1-head">' +
+      '<span class="p1-num">ಭಾಗ-1 · ಪ್ರಶ್ನೆ ' + activeNo + '</span>' +
+      '<div class="qedit-tools">' +
+        '<button type="button" class="danger" data-action="p1-del" data-i="' + i + '" title="ಈ ಪ್ರಶ್ನೆಯನ್ನು ಅಳಿಸಿ">✕</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="p1-dayrow">' +
+      '<div class="p1-mini">' +
+        '<span>ದಿನ</span>' +
+        '<input type="text" list="p1DayList" data-p1="' + i + '" data-p1f="day"' +
+          ' value="' + esc(b.day) + '" placeholder="ಉದಾ: ಸೋಮವಾರ">' +
+        p1ScopeControl('day', scope.day) +
+      '</div>' +
+      '<div class="p1-mini">' +
+        '<span>ದಿನಾಂಕ</span>' +
+        '<input type="date" data-p1="' + i + '" data-p1f="date" value="' + esc(b.date) + '">' +
+        p1ScopeControl('date', scope.date) +
+      '</div>' +
+    '</div>' +
+
+    /* the three lines of breathing room asked for */
+    '<div class="p1-gap" aria-hidden="true"><span></span><span></span><span></span></div>' +
+
+    '<div class="p1-sessions">' +
+      '<div>' +
+        '<span class="p1-lbl">ಅಧಿವೇಶನ (ಆರಂಭ – ಅಂತ್ಯ)</span>' +
+        '<div class="row" style="gap:8px;align-items:center;">' +
+          '<input type="text" inputmode="numeric" data-p1="' + i + '" data-p1f="sessionFrom"' +
+            ' value="' + esc(b.sessionFrom) + '" placeholder="1" aria-label="ಆರಂಭ ಅಧಿವೇಶನ">' +
+          '<span class="sess-dash">–</span>' +
+          '<input type="text" inputmode="numeric" data-p1="' + i + '" data-p1f="sessionTo"' +
+            ' value="' + esc(b.sessionTo) + '" placeholder="3" aria-label="ಅಂತ್ಯ ಅಧಿವೇಶನ">' +
+        '</div>' +
+        p1ScopeControl('sessions', scope.sessions) +
+      '</div>' +
+    '</div>' +
+
+    '<label class="field p1-subject"><span>ವಿಷಯ</span>' +
+      '<input type="text" data-p1="' + i + '" data-p1f="subject" value="' + esc(b.subject) + '"' +
+        ' placeholder="ಅಧಿವೇಶನದ ವಿಷಯ (ಉದಾ: ಜಿಲ್ಲಾ ಆಡಳಿತದ ಪಾತ್ರ)">' +
+    '</label>' +
+
+    '<label class="field"><span>ಮುಖ್ಯ ಪ್ರಶ್ನೆ</span>' +
+      '<textarea class="q-big" rows="8" data-p1="' + i + '" data-p1f="question"' +
+        ' placeholder="ಇಲ್ಲಿ ಕನ್ನಡ ಪ್ರಶ್ನೆಯನ್ನು ಬರೆಯಿರಿ…">' + esc(b.question) + '</textarea>' +
+      '<div class="field-hint">ಈ ಪ್ರಶ್ನೆ ನೇರವಾಗಿ ಸಂಪಾದನೆಯಾಗುತ್ತದೆ — Edit for All / Edit for One ಇಲ್ಲಿ ಅನ್ವಯವಾಗುವುದಿಲ್ಲ.</div>' +
+    '</label>' +
+
+    '<label class="field" style="margin-bottom:0;"><span>ಉಪನ್ಯಾಸಕರು</span>' +
+      '<input type="text" data-p1="' + i + '" data-p1f="lecturer" value="' + esc(b.lecturer) + '"' +
+        ' placeholder="ಉಪನ್ಯಾಸಕರ / ಸಂಪನ್ಮೂಲ ವ್ಯಕ್ತಿಯ ಹೆಸರು">' +
+    '</label>' +
+  '</div>';
+}
+
+/* ---- ಭಾಗ-2 editor ---- */
+function p2FormatSelect(q, i){
+  return '<select data-p2fmt="' + i + '">' +
+    Object.keys(FB_FORMATS).map(function(k){
+      return '<option value="' + k + '"' + (q.format === k ? ' selected' : '') + '>' +
+        esc(FB_FORMATS[k]) + '</option>';
+    }).join('') +
+  '</select>';
+}
+
+function p2OptionsEditor(q, i){
+  if(q.format === 'text'){
+    return '<div class="tiny muted" style="margin-top:6px;line-height:1.8;">' +
+      'ವಿವರಣಾತ್ಮಕ ಪ್ರಶ್ನೆ — ಪೂರ್ವನಿರ್ಧಾರಿತ ಆಯ್ಕೆಗಳಿಲ್ಲ. ಶಿಬಿರಾರ್ಥಿಗೆ ದೊಡ್ಡ ಪಠ್ಯ ಕ್ಷೇತ್ರ ಕಾಣಿಸುತ್ತದೆ.</div>';
+  }
+  return '<div class="p2-opts">' + (q.options || []).map(function(o, j){
+      return '<div class="p2-opt">' +
+        '<span class="opt-tag">' + (j + 1) + '</span>' +
+        '<input type="text" data-bind="feedback.part2.' + i + '.options.' + j + '"' +
+          ' value="' + esc(o) + '" placeholder="ಆಯ್ಕೆ ' + (j + 1) + '">' +
+        '<button type="button" class="opt-del" data-action="p2-opt-del" data-i="' + i + '" data-j="' + j + '"' +
+          ' title="ಈ ಆಯ್ಕೆಯನ್ನು ಅಳಿಸಿ">✕</button>' +
+      '</div>';
+    }).join('') + '</div>' +
+    '<div class="p2-foot">' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-action="p2-opt-add" data-i="' + i + '">+ ಆಯ್ಕೆ ಸೇರಿಸಿ</button>' +
+      '<span class="tiny muted">' + (q.options || []).length + ' ಆಯ್ಕೆಗಳು</span>' +
+    '</div>';
+}
+
+function p2AdminQuestion(q, i, activeNo){
+  return '<div class="p2-q">' +
+    '<div class="qedit-head">' +
+      '<span class="qnum">ಭಾಗ-2 · ಪ್ರಶ್ನೆ ' + activeNo + '</span>' +
+      '<div class="qedit-tools">' +
+        '<button type="button" data-action="p2-up" data-i="' + i + '" title="ಮೇಲೆ ಸರಿಸಿ">↑</button>' +
+        '<button type="button" data-action="p2-down" data-i="' + i + '" title="ಕೆಳಗೆ ಸರಿಸಿ">↓</button>' +
+        '<button type="button" class="danger" data-action="p2-del" data-i="' + i + '" title="ಅಳಿಸಿ">✕</button>' +
+      '</div>' +
+    '</div>' +
+    '<label class="field"><span>ಪ್ರಶ್ನೆ ಪಠ್ಯ</span>' +
+      '<textarea class="q-big" rows="6" data-bind="feedback.part2.' + i + '.text"' +
+        ' placeholder="ಇಲ್ಲಿ ಕನ್ನಡ ಪ್ರಶ್ನೆಯನ್ನು ಬರೆಯಿರಿ…">' + esc(q.text) + '</textarea>' +
+    '</label>' +
+    '<div class="grid-2">' +
+      '<label class="field"><span>ಪ್ರಶ್ನೆ ಪ್ರಕಾರ</span>' + p2FormatSelect(q, i) + '</label>' +
+      '<label class="field"><span>ಆಯ್ಕೆಗಳ ಸಂಖ್ಯೆ</span>' +
+        (q.format === 'text'
+          ? '<input type="text" value="—" disabled>'
+          : '<input type="number" min="2" max="20" data-p2count="' + i + '" value="' + (q.options || []).length + '">') +
+      '</label>' +
+    '</div>' +
+    p2OptionsEditor(q, i) +
+  '</div>';
+}
+
+function p1DeletedList(items){
+  const rows = (items || []).map(function(b, i){
+    if(!b.deleted) return '';
+    return '<div class="del-row">' +
+      '<span class="del-txt"><b>' + esc(trunc(b.question || b.subject || 'ಪ್ರಶ್ನೆ', 90)) + '</b>' +
+        (b.day ? ' <span class="tiny muted">· ' + esc(b.day) + '</span>' : '') + '</span>' +
+      '<div class="row" style="gap:6px;">' +
+        '<button class="btn btn-ghost btn-sm" data-action="p1-restore" data-i="' + i + '">ಮರುಸ್ಥಾಪಿಸಿ</button>' +
+        '<button class="btn btn-danger btn-sm" data-action="p1-purge" data-i="' + i + '">ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಿ</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  return rows
+    ? '<div class="del-list"><div class="tiny muted" style="margin-bottom:6px;">ಅಳಿಸಿದ ಭಾಗ-1 ಪ್ರಶ್ನೆಗಳು</div>' + rows + '</div>'
+    : '';
+}
+
+function p2DeletedList(items){
+  const rows = (items || []).map(function(q, i){
+    if(!q.deleted) return '';
+    return '<div class="del-row">' +
+      '<span class="del-txt"><b>' + esc(trunc(q.text || 'ಪ್ರಶ್ನೆ', 90)) + '</b></span>' +
+      '<div class="row" style="gap:6px;">' +
+        '<button class="btn btn-ghost btn-sm" data-action="p2-restore" data-i="' + i + '">ಮರುಸ್ಥಾಪಿಸಿ</button>' +
+        '<button class="btn btn-danger btn-sm" data-action="p2-purge" data-i="' + i + '">ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಿ</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  return rows
+    ? '<div class="del-list"><div class="tiny muted" style="margin-bottom:6px;">ಅಳಿಸಿದ ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳು</div>' + rows + '</div>'
+    : '';
+}
+
 function adminTrainingForm(){
   const d = state.editing;
+  const fb = d.feedback || (d.feedback = { notice:'', part1:[], part2:[], scope:{ day:'one', date:'one', sessions:'one' } });
+  if(!fb.scope) fb.scope = { day:'one', date:'one', sessions:'one' };
 
-  const sessionsHtml = (d.feedback.sessions || []).map((s,i) =>
-    '<div class="qedit">' +
-      '<div class="qedit-head"><span class="qnum">ಅಧಿವೇಶನ ' + (i+1) + '</span>' +
-        '<div class="qedit-tools"><button type="button" class="danger" data-action="del-session" data-i="' + i + '" title="ಅಳಿಸಿ">✕</button></div>' +
-      '</div>' +
-      '<label class="field"><span>ಅಧಿವೇಶನ ಶೀರ್ಷಿಕೆ</span><input data-bind="feedback.sessions.' + i + '.heading" value="' + esc(s.heading||'') + '"></label>' +
-      '<label class="field"><span>ವಿಷಯ (ವಿವರಣೆ)</span><textarea data-bind="feedback.sessions.' + i + '.topic" rows="3">' + esc(s.topic||'') + '</textarea></label>' +
-      '<label class="field" style="margin-bottom:0;"><span>ಉಪನ್ಯಾಸಕರು</span><input data-bind="feedback.sessions.' + i + '.lecturer" value="' + esc(s.lecturer||'') + '"></label>' +
-    '</div>'
-  ).join('') || '<p class="muted small">ಯಾವುದೇ ಅಧಿವೇಶನಗಳಿಲ್ಲ.</p>';
+  /* ---- ಭಾಗ-1 ---- */
+  let p1No = 0;
+  const p1Html = (fb.part1 || []).map(function(b, i){
+    if(b.deleted) return '';
+    p1No += 1;
+    return p1AdminBlock(b, i, p1No, fb.scope);
+  }).join('') || '<p class="muted small">ಇನ್ನೂ ಭಾಗ-1 ಪ್ರಶ್ನೆಗಳಿಲ್ಲ. “+ ಭಾಗ-1 ಪ್ರಶ್ನೆ ಸೇರಿಸಿ” ಒತ್ತಿ.</p>';
 
-  const fbHtml = (d.feedback.questions || []).map((q,i) => {
-    const isText = q.type === 'textarea';
-    /* every radio feedback question carries exactly four options */
-    const fbOpts = isText ? [] : [0,1,2,3].map(j => (q.options && q.options[j]) || '');
-    const optInputs = isText ? '' :
-      '<div class="grid-2">' + fbOpts.map((o,j) =>
-        '<label class="field"><span>ಆಯ್ಕೆ ' + (j+1) + '</span>' +
-          '<input data-bind="feedback.questions.' + i + '.options.' + j + '" value="' + esc(o) + '"></label>'
-      ).join('') + '</div>';
+  /* ---- ಭಾಗ-2 ---- */
+  let p2No = 0;
+  const p2Html = (fb.part2 || []).map(function(q, i){
+    if(q.deleted) return '';
+    p2No += 1;
+    return p2AdminQuestion(q, i, p2No);
+  }).join('') || '<p class="muted small">ಇನ್ನೂ ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳಿಲ್ಲ. “+ ಭಾಗ-2 ಪ್ರಶ್ನೆ ಸೇರಿಸಿ” ಒತ್ತಿ.</p>';
+
+  /* ---- MCQ (unchanged content, larger boxes) ---- */
+  const qHtml = (d.questions || []).map(function(q, i){
     return '<div class="qedit">' +
-      '<div class="qedit-head"><span class="qnum">ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆ ' + (i+1) + '</span>' +
-        '<div class="qedit-tools"><button type="button" class="danger" data-action="del-fbq" data-i="' + i + '" title="ಅಳಿಸಿ">✕</button></div>' +
-      '</div>' +
-      '<label class="field"><span>ಪ್ರಶ್ನೆ ಪಠ್ಯ</span><input data-bind="feedback.questions.' + i + '.text" value="' + esc(q.text||'') + '"></label>' +
-      '<label class="field"><span>ಪ್ರಕಾರ</span>' +
-        '<select data-bind="feedback.questions.' + i + '.type">' +
-          '<option value="radio"' + (q.type==='radio'?' selected':'') + '>ಆಯ್ಕೆ (Radio)</option>' +
-          '<option value="textarea"' + (q.type==='textarea'?' selected':'') + '>ವಿವರಣಾತ್ಮಕ (Text area)</option>' +
-        '</select>' +
-      '</label>' +
-      optInputs +
-    '</div>';
-  }).join('') || '<p class="muted small">ಯಾವುದೇ ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆಗಳಿಲ್ಲ.</p>';
-
-  const qHtml = (d.questions || []).map((q,i) =>
-    '<div class="qedit">' +
       '<div class="qedit-head">' +
         '<span class="qnum">ಪ್ರಶ್ನೆ ' + (i+1) + '</span>' +
         '<div class="qedit-tools">' +
@@ -2847,12 +3605,13 @@ function adminTrainingForm(){
         '</div>' +
       '</div>' +
       '<label class="field"><span>ಪ್ರಶ್ನೆ ಪಠ್ಯ</span>' +
-        '<textarea data-bind="questions.' + i + '.text" rows="2">' + esc(q.text||'') + '</textarea></label>' +
-      '<div class="grid-2">' +
-        (q.options||[]).map((o,j) =>
-          '<label class="field"><span>ಆಯ್ಕೆ ' + 'ABCD'[j] + '</span>' +
-            '<input data-bind="questions.' + i + '.options.' + j + '" value="' + esc(o) + '"></label>'
-        ).join('') +
+        '<textarea class="q-big" rows="6" data-bind="questions.' + i + '.text"' +
+          ' placeholder="ಇಲ್ಲಿ ಕನ್ನಡ ಪ್ರಶ್ನೆಯನ್ನು ಬರೆಯಿರಿ…">' + esc(q.text||'') + '</textarea></label>' +
+      '<div class="opt-grid">' +
+        (q.options||[]).map(function(o, j){
+          return '<label class="field"><span>ಆಯ್ಕೆ ' + 'ABCD'[j] + '</span>' +
+            '<input type="text" data-bind="questions.' + i + '.options.' + j + '" value="' + esc(o) + '"></label>';
+        }).join('') +
       '</div>' +
       '<div class="grid-2">' +
         '<label class="field"><span>ಸರಿಯಾದ ಉತ್ತರ</span>' +
@@ -2863,58 +3622,75 @@ function adminTrainingForm(){
             (q.correct === null || q.correct === undefined
               ? '<option value="" selected>' + (d.isNew ? '— ಆಯ್ಕೆಮಾಡಿ —' : '— ಬದಲಾಯಿಸಬೇಡ (ಈಗಿನ ಕೀ ಉಳಿಯುತ್ತದೆ) —') + '</option>'
               : '') +
-            (q.options||[]).map((o,j) =>
-              '<option value="' + j + '"' + (Number(q.correct) === j ? ' selected' : '') + '>' +
-                'ABCD'[j] + ') ' + esc(trunc(o, 46)) + '</option>'
-            ).join('') +
+            (q.options||[]).map(function(o, j){
+              return '<option value="' + j + '"' + (Number(q.correct) === j ? ' selected' : '') + '>' +
+                'ABCD'[j] + ') ' + esc(trunc(o, 46)) + '</option>';
+            }).join('') +
           '</select>' +
         '</label>' +
         '<label class="field"><span>ಅಂಕಗಳು</span>' +
           '<input type="number" min="1" data-bind="questions.' + i + '.marks" value="' + (q.marks||1) + '"></label>' +
       '</div>' +
       '<button type="button" class="btn btn-ghost btn-sm" data-action="q-preview" data-i="' + i + '">ಮುನ್ನೋಟ (Preview)</button>' +
-    '</div>'
-  ).join('') || '<p class="muted small">ಯಾವುದೇ ಮೌಲ್ಯಮಾಪನ ಪ್ರಶ್ನೆಗಳಿಲ್ಲ.</p>';
+    '</div>';
+  }).join('') || '<p class="muted small">ಯಾವುದೇ ಮೌಲ್ಯಮಾಪನ ಪ್ರಶ್ನೆಗಳಿಲ್ಲ.</p>';
 
   const noticeHtml =
     '<div class="divider"></div>' +
     '<div class="subhead"><h3>ಪ್ರತಿಕ್ರಿಯೆ ಮುನ್ನ ಸೂಚನೆ</h3>' +
-      '<span class="muted small">ವಿದ್ಯಾರ್ಥಿಗೆ ಪ್ರತಿಕ್ರಿಯೆ ಭಾಗದ ಮೇಲೆ ಕಾಣಿಸುತ್ತದೆ</span></div>' +
+      '<span class="muted small">ಶಿಬಿರಾರ್ಥಿಗೆ ಪ್ರತಿಕ್ರಿಯೆ ಭಾಗದ ಮೇಲೆ ಕಾಣಿಸುತ್ತದೆ</span></div>' +
     '<label class="field" style="margin-bottom:0;"><span>ಮುಖ್ಯ ಸೂಚನೆ (Notice)</span>' +
-      '<textarea data-bind="feedback.notice" rows="4" placeholder="ಉದಾ: ಪ್ರತಿಕ್ರಿಯೆ ನೀಡುವ ಮೊದಲು ಎಲ್ಲಾ ಅಧಿವೇಶನಗಳ ಮೌಲ್ಯಮಾಪನ ಮಾಡಿ.">' +
-        esc((d.feedback && d.feedback.notice) || '') + '</textarea></label>';
+      '<textarea data-bind="feedback.notice" rows="5" placeholder="ಉದಾ: ಪ್ರತಿಕ್ರಿಯೆ ನೀಡುವ ಮೊದಲು ಎಲ್ಲಾ ಅಧಿವೇಶನಗಳ ಮೌಲ್ಯಮಾಪನ ಮಾಡಿ.">' +
+        esc(fb.notice || '') + '</textarea></label>';
 
   return '<form data-form="training" class="card" novalidate>' +
     '<div class="card-head">' +
       '<div><h2>' + (d.isNew ? 'ಹೊಸ ತರಬೇತಿ ಸೇರಿಸಿ' : 'ತರಬೇತಿ ಸಂಪಾದಿಸಿ') + '</h2>' +
-      '<p class="muted small" style="margin:0;">ಎಲ್ಲಾ ಕ್ಷೇತ್ರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ ಮತ್ತು ಉಳಿಸಿ ಒತ್ತಿ.</p></div>' +
+      '<p class="muted small" style="margin:0;">ತರಬೇತಿ ಶೀರ್ಷಿಕೆ, ಅವಧಿ, ಭಾಗ-1 ಮತ್ತು ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳನ್ನು ನಿರ್ವಹಿಸಿ.</p></div>' +
       '<span class="badge gold">' + (d.isNew ? 'ಹೊಸದು' : 'ಸಂಪಾದನೆ') + '</span>' +
     '</div>' +
 
+    '<datalist id="p1DayList">' +
+      WEEKDAYS_KN.map(function(w){ return '<option value="' + esc(w) + '"></option>'; }).join('') +
+    '</datalist>' +
+
     '<div class="grid-2">' +
-      '<label class="field"><span>ತರಬೇತಿ ಶೀರ್ಷಿಕೆ *</span><input data-bind="title" value="' + esc(d.title) + '" placeholder="ಉದಾ: ಪ್ರವೇಶ ನಂತರ ಪರೀಕ್ಷೆ ಮತ್ತು ತರಬೇತಿ"></label>' +
-      '<label class="field"><span>ದಿನಾಂಕ *</span><input data-bind="date" value="' + esc(d.date) + '" placeholder="DD-MM-YYYY"></label>' +
-      '<label class="field span-2"><span>ತರಬೇತಿ ವಿಷಯ / ಶೀರ್ಷಿಕೆ (Heading) *</span><input data-bind="topic" value="' + esc(d.topic) + '" placeholder="ತರಬೇತಿಯ ಮುಖ್ಯ ವಿಷಯ"></label>' +
-      '<label class="field span-2"><span>ವಿವರಣೆ</span><textarea data-bind="description" rows="3">' + esc(d.description) + '</textarea></label>' +
-      '<label class="field"><span>ವರ್ಗ (Category)</span><input data-bind="category" value="' + esc(d.category) + '" placeholder="ಉದಾ: ವಿಧಾನಮಂಡಲ ಕಾರ್ಯವಿಧಾನ"></label>' +
-      '<label class="field"><span>ಥೀಮ್ ಬಣ್ಣ</span><input type="color" data-bind="accent" value="' + esc(d.accent) + '"></label>' +
-      '<label class="field"><span>ಉತ್ತೀರ್ಣ ಶೇಕಡಾವಾರು (%) *</span><input type="number" min="1" max="100" data-bind="passing" value="' + (d.passing||70) + '"></label>' +
+      '<label class="field span-2"><span>ತರಬೇತಿ ಶೀರ್ಷಿಕೆ *</span>' +
+        '<input type="text" data-bind="title" value="' + esc(d.title) + '"' +
+          ' placeholder="ಉದಾ: ಜಿಲ್ಲಾ ಆಡಳಿತ ಮತ್ತು ಸೇವಾ ನಿಯಮಗಳ ತರಬೇತಿ">' +
+        '<div class="field-hint">ಈ ಶೀರ್ಷಿಕೆಯೇ ಪ್ರಮಾಣಪತ್ರದಲ್ಲಿ “Training Name” ಆಗಿ ಮುದ್ರಣವಾಗುತ್ತದೆ.</div>' +
+      '</label>' +
+      '<label class="field"><span>ತರಬೇತಿ ಆರಂಭ ದಿನಾಂಕ *</span>' +
+        '<input type="date" data-bind="startDate" value="' + esc(d.startDate) + '"></label>' +
+      '<label class="field"><span>ತರಬೇತಿ ಅಂತ್ಯ ದಿನಾಂಕ *</span>' +
+        '<input type="date" data-bind="endDate" value="' + esc(d.endDate) + '"></label>' +
+      '<label class="field"><span>ಉತ್ತೀರ್ಣ ಶೇಕಡಾವಾರು (%) *</span>' +
+        '<input type="number" min="1" max="100" data-bind="passing" value="' + (d.passing||70) + '"></label>' +
+      '<label class="field"><span>ಥೀಮ್ ಬಣ್ಣ</span>' +
+        '<input type="color" data-bind="accent" value="' + esc(d.accent) + '"></label>' +
     '</div>' +
 
     '<div class="divider"></div>' +
-    '<div class="subhead"><h3>ಅಧಿವೇಶನಗಳು (Session Headings)</h3>' +
-      '<button type="button" class="btn btn-ghost btn-sm" data-action="add-session">+ ಅಧಿವೇಶನ ಸೇರಿಸಿ</button></div>' +
-    noticeHtml +
-    sessionsHtml +
+    '<div class="subhead"><h3>ಭಾಗ-1 — ದಿನದ ಹಿಮ್ಮಾಹಿತಿ</h3>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-action="p1-add">+ ಭಾಗ-1 ಪ್ರಶ್ನೆ ಸೇರಿಸಿ</button></div>' +
+    '<p class="section-tagline" style="margin:-6px 0 16px;">ಪ್ರತಿ ಪ್ರಶ್ನೆಗೂ ದಿನ, ದಿನಾಂಕ, ಅಧಿವೇಶನ ಶ್ರೇಣಿ, ವಿಷಯ, ಮುಖ್ಯ ಪ್ರಶ್ನೆ ಮತ್ತು ಉಪನ್ಯಾಸಕರ ಹೆಸರು ಸೇರಿಸಿ. ' +
+      '<b>ದಿನ</b>, <b>ದಿನಾಂಕ</b> ಮತ್ತು <b>ಅಧಿವೇಶನ</b> ಕ್ಷೇತ್ರಗಳಿಗೆ ಮಾತ್ರ “ಎಲ್ಲಕ್ಕೂ (Edit for All)” ಅನ್ವಯವಾಗುತ್ತದೆ.</p>' +
+    p1Html +
+    p1DeletedList(fb.part1) +
 
     '<div class="divider"></div>' +
-    '<div class="subhead"><h3>ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆಗಳು</h3>' +
-      '<button type="button" class="btn btn-ghost btn-sm" data-action="add-fbq">+ ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆ ಸೇರಿಸಿ</button></div>' +
-    fbHtml +
+    '<div class="subhead"><h3>ಭಾಗ-2 — ತರಬೇತಿ ಉಪಯುಕ್ತತೆ ಕುರಿತು ಹಿಮ್ಮಾಹಿತಿ</h3>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-action="p2-add">+ ಭಾಗ-2 ಪ್ರಶ್ನೆ ಸೇರಿಸಿ</button></div>' +
+    '<p class="section-tagline" style="margin:-6px 0 16px;">ಪ್ರಶ್ನೆ ಪ್ರಕಾರ ಆಯ್ಕೆಮಾಡಿ — <b>ಆಯ್ಕೆ</b>, <b>ರೇಟಿಂಗ್</b> ಅಥವಾ <b>ವಿವರಣಾತ್ಮಕ</b>. ಪ್ರತಿ ಪ್ರಶ್ನೆಗೂ ಬೇರೆ ಬೇರೆ ಸಂಖ್ಯೆಯ ಆಯ್ಕೆಗಳನ್ನು ನೀಡಬಹುದು.</p>' +
+    p2Html +
+    p2DeletedList(fb.part2) +
+
+    noticeHtml +
 
     '<div class="divider"></div>' +
     '<div class="subhead"><h3>ಮೌಲ್ಯಮಾಪನ ಪ್ರಶ್ನೆಗಳು (MCQ)</h3>' +
       '<button type="button" class="btn btn-ghost btn-sm" data-action="q-add">+ ಪ್ರಶ್ನೆ ಸೇರಿಸಿ</button></div>' +
+    '<p class="section-tagline" style="margin:-6px 0 16px;">MCQ ವ್ಯವಸ್ಥೆ ಮತ್ತು ಅದರ ಅಂಕದಾನ ಹಾಗೆಯೇ ಉಳಿದಿದೆ — ಇಲ್ಲಿ ಕೇವಲ ಸಂಪಾದನಾ ಕ್ಷೇತ್ರಗಳ ಗಾತ್ರ ಹೆಚ್ಚಿಸಲಾಗಿದೆ.</p>' +
     qHtml +
 
     '<div class="divider"></div>' +
@@ -2932,9 +3708,12 @@ function saveTraining(){
   if(!d) return;
 
   const errors = [];
-  if(!String(d.title||'').trim()) errors.push('ತರಬೇತಿ ಶೀರ್ಷಿಕೆ ಅಗತ್ಯ.');
-  if(!String(d.topic||'').trim()) errors.push('ತರಬೇತಿ ವಿಷಯ ಅಗತ್ಯ.');
-  if(!String(d.date||'').trim()) errors.push('ದಿನಾಂಕ ಅಗತ್ಯ.');
+  if(!str(d.title).trim()) errors.push('ತರಬೇತಿ ಶೀರ್ಷಿಕೆ ಅಗತ್ಯ.');
+  if(!str(d.startDate).trim()) errors.push('ತರಬೇತಿ ಆರಂಭ ದಿನಾಂಕ ಅಗತ್ಯ.');
+  if(!str(d.endDate).trim()) errors.push('ತರಬೇತಿ ಅಂತ್ಯ ದಿನಾಂಕ ಅಗತ್ಯ.');
+  if(str(d.startDate).trim() && str(d.endDate).trim() && str(d.endDate) < str(d.startDate)){
+    errors.push('ಅಂತ್ಯ ದಿನಾಂಕವು ಆರಂಭ ದಿನಾಂಕಕ್ಕಿಂತ ಹಿಂದೆ ಇರಬಾರದು.');
+  }
 
   const passing = Number(d.passing);
   if(!passing || passing < 1 || passing > 100) errors.push('ಉತ್ತೀರ್ಣ ಶೇಕಡಾವಾರು 1 ಮತ್ತು 100 ರ ನಡುವೆ ಇರಬೇಕು.');
@@ -2959,17 +3738,24 @@ function saveTraining(){
     }
   });
 
-  /* feedback questions: a radio question needs its four options filled */
-  ((d.feedback && d.feedback.questions) || []).forEach((q, i) => {
-    if(q.type === 'textarea') return;
-    const opts = [0,1,2,3].map(j => String((q.options||[])[j] || '').trim());
-    if(opts.some(o => !o)){
-      errors.push('ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆ ' + (i+1) + ': ನಾಲ್ಕು ಆಯ್ಕೆಗಳು ಅಗತ್ಯ.');
+  const fbDraft = d.feedback || {};
+  /* ಭಾಗ-1: only the blocks that are not deleted are validated */
+  (fbDraft.part1 || []).forEach((b, i) => {
+    if(b.deleted) return;
+    if(!str(b.question).trim()) errors.push('ಭಾಗ-1 ಪ್ರಶ್ನೆ ' + (i+1) + ': ಮುಖ್ಯ ಪ್ರಶ್ನೆ ಅಗತ್ಯ.');
+  });
+  /* ಭಾಗ-2: choice / rating need at least two options; text needs none */
+  (fbDraft.part2 || []).forEach((q, i) => {
+    if(q.deleted) return;
+    if(!str(q.text).trim()) errors.push('ಭಾಗ-2 ಪ್ರಶ್ನೆ ' + (i+1) + ': ಪ್ರಶ್ನೆ ಪಠ್ಯ ಅಗತ್ಯ.');
+    if(q.format !== 'text'){
+      const opts = (q.options || []).map(o => str(o).trim()).filter(Boolean);
+      if(opts.length < 2) errors.push('ಭಾಗ-2 ಪ್ರಶ್ನೆ ' + (i+1) + ': ಕನಿಷ್ಠ ಎರಡು ಆಯ್ಕೆಗಳು ಅಗತ್ಯ.');
     }
   });
 
+  const msg = document.getElementById('adminFormMsg');
   if(errors.length){
-    const msg = document.getElementById('adminFormMsg');
     if(msg){
       msg.className = 'form-msg show error';
       msg.innerHTML = errors.map(e => '• ' + esc(e)).join('<br>');
@@ -2978,7 +3764,7 @@ function saveTraining(){
     return;
   }
 
-  /* ---- build the three writes: training row, question rows, answer key ---- */
+  /* ---- build the writes: training row, question rows, answer key ---- */
   const isNew = !!d.isNew;
   const trainingId = isNew ? ('t_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6)) : d.id;
 
@@ -3000,33 +3786,26 @@ function saveTraining(){
     if(hasKey) answerKey[q.id] = Number(q.correct) || 0;
   });
 
-  const feedback = deepCopy(d.feedback || { day:'', notice:'', sessions:[], questions:[] });
-  feedback.notice = String(feedback.notice || '').trim();
-  feedback.questions = (feedback.questions || []).map(function(q){
-    const isText = q.type === 'textarea';
-    const opts = isText ? [] : [0,1,2,3].map(function(j){ return String((q.options||[])[j] || '').trim(); });
-    return {
-      id: q.id || uid('f'),
-      text: String(q.text||'').trim(),
-      type: isText ? 'textarea' : 'radio',
-      options: opts
-    };
-  });
+  const part1 = (fbDraft.part1 || []).map(function(b, i){ return normalizePart1Block(b, i); });
+  const part2 = (fbDraft.part2 || []).map(function(q, i){ return normalizePart2Question(q, i); });
+  const startDate = str(d.startDate).trim();
+  const endDate = str(d.endDate).trim();
 
   const row = {
     id: trainingId,
     title: String(d.title).trim(),
-    topic: String(d.topic).trim(),
-    date: String(d.date).trim(),
-    description: String(d.description || '').trim(),
-    category: String(d.category || '').trim(),
+    start_date: startDate,
+    end_date: endDate,
+    /* the legacy single date column stays in step so existing reports,
+       certificates and archive views keep a readable date */
+    date: dateRange(startDate, endDate),
     accent: d.accent || '#1D3557',
     institute: d.institute || INSTITUTE,
     passing: passing,
-    feedback_day: String(feedback.day || ''),
-    feedback_notice: String(feedback.notice || ''),
-    feedback_sessions: feedback.sessions || [],
-    feedback_questions: feedback.questions || []
+    feedback_notice: str(fbDraft.notice || '').trim(),
+    feedback_version: 1,
+    feedback_part1: part1,
+    feedback_part2: part2
   };
   /* a brand new training goes live immediately, as it did before; an edit
      keeps whatever publish/archive state the row already had */
@@ -3044,7 +3823,6 @@ function saveTraining(){
     };
   });
 
-  const msg = document.getElementById('adminFormMsg');
   if(msg){ msg.className = 'form-msg'; msg.innerHTML = ''; }
   toast('ಉಳಿಸಲಾಗುತ್ತಿದೆ…','info');
 
@@ -3080,18 +3858,31 @@ function saveTraining(){
     })
     .catch(function(err){
       const raw = String((err && (err.message || err.details || err.hint)) || '');
-      /* a project that has not run the feedback_notice migration yet:
-         store everything else rather than losing the whole training */
-      if(Object.prototype.hasOwnProperty.call(row, 'feedback_notice') && raw.indexOf('feedback_notice') > -1){
+      const newColumns = ['feedback_notice','feedback_version','feedback_part1','feedback_part2','start_date','end_date'];
+      const missingNew = newColumns.some(function(c){ return raw.indexOf(c) > -1; });
+
+      /* A project that has not run the training-system migration yet: keep
+         the data by storing the two sections in the legacy jsonb columns
+         and dropping the new ones. normalizePart1/normalizePart2 detect the
+         shape on the way back in, so nothing is lost. */
+      if(missingNew){
+        toast('ಈ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಹೊಸ ಕಾಲಮ್‌ಗಳಿಲ್ಲ — ಹೊಂದಾಣಿಕೆಯ ಸ್ವರೂಪದಲ್ಲಿ ಉಳಿಸಲಾಗುತ್ತಿದೆ.', 'info');
+        row.feedback_sessions = part1;
+        row.feedback_questions = part2;
         delete row.feedback_notice;
-        toast('ಈ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಸೂಚನೆ ಕಾಲಮ್ ಇಲ್ಲ — ಸೂಚನೆ ಇಲ್ಲದೆ ಉಳಿಸಲಾಗುತ್ತಿದೆ.', 'info');
+        delete row.feedback_version;
+        delete row.feedback_part1;
+        delete row.feedback_part2;
+        delete row.start_date;
+        delete row.end_date;
         return writeAll()
           .then(function(){
             state.editing = null;
             return reloadPortalData();
           })
-          .then(function(){ toast('ತರಬೇತಿ ಉಳಿಸಲಾಗಿದೆ (ಸೂಚನೆ ಬಿಟ್ಟು).', 'success'); });
+          .then(function(){ toast('ತರಬೇತಿ ಉಳಿಸಲಾಗಿದೆ.', 'success'); });
       }
+
       console.warn('[training] save failed', err && (err.message || err.code));
       const text = dataErrorMessage(err);
       if(msg){ msg.className = 'form-msg show error'; msg.textContent = text; }
@@ -3221,23 +4012,39 @@ function exportCSV(){
   }
 }
 
+/* how many ಭಾಗ-1 / ಭಾಗ-2 questions a submission answered */
+function feedbackAnswerCounts(sub, t){
+  const p1 = part1Active(t), p2 = part2Active(t);
+  let a1 = 0, a2 = 0;
+  p1.forEach(function(b, i){
+    const ratings = (sub.feedback && sub.feedback.ratings) || {};
+    if(ratings[b.id] || ratings[String(i)]) a1 += 1;
+  });
+  p2.forEach(function(q){
+    if(sub.feedback && sub.feedback.answers && str(sub.feedback.answers[q.id]).trim()) a2 += 1;
+  });
+  return { p1:a1, p1Total:p1.length, p2:a2, p2Total:p2.length };
+}
+
 function adminFeedback(){
   const subs = DB.submissions.slice().sort((a,b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-  const rows = subs.length ? subs.map(s =>
-    '<tr>' +
+  const rows = subs.length ? subs.map(s => {
+    const t = getTraining(s.trainingId);
+    const c = feedbackAnswerCounts(s, t);
+    return '<tr>' +
       '<td data-label="ವಿದ್ಯಾರ್ಥಿ"><span class="td-name">' + esc(s.details.name || s.userName) + '</span></td>' +
       '<td data-label="ತರಬೇತಿ">' + esc(trunc(s.trainingTitle, 30)) + '</td>' +
-      '<td data-label="ಅಧಿವೇಶನ 1-3">' + esc((s.feedback && s.feedback.ratings && s.feedback.ratings['0']) || '—') + '</td>' +
-      '<td data-label="ಅಧಿವೇಶನ 4-5">' + esc((s.feedback && s.feedback.ratings && s.feedback.ratings['1']) || '—') + '</td>' +
+      '<td data-label="ಭಾಗ-1">' + c.p1 + ' / ' + c.p1Total + '</td>' +
+      '<td data-label="ಭಾಗ-2">' + c.p2 + ' / ' + c.p2Total + '</td>' +
       '<td data-label="ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ">' + esc(fmtDateTime(s.submittedAt)) + '</td>' +
       '<td data-label=""><button class="btn btn-ghost btn-sm" data-action="view-submission" data-id="' + esc(s.id) + '">ಪೂರ್ಣ ಪ್ರತಿಕ್ರಿಯೆ</button></td>' +
-    '</tr>'
-  ).join('') : '<tr><td colspan="6"><div class="table-empty">ಯಾವುದೇ ಪ್ರತಿಕ್ರಿಯೆಗಳು ಲಭ್ಯವಿಲ್ಲ.</div></td></tr>';
+    '</tr>';
+  }).join('') : '<tr><td colspan="6"><div class="table-empty">ಯಾವುದೇ ಪ್ರತಿಕ್ರಿಯೆಗಳು ಲಭ್ಯವಿಲ್ಲ.</div></td></tr>';
 
   return '' +
-  '<div class="page-head"><h2>ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರತಿಕ್ರಿಯೆಗಳು</h2><div class="ph-sub">ಶಿಬಿರಾರ್ಥಿಗಳ ತರಬೇತಿ ಪ್ರತಿಕ್ರಿಯೆಗಳು</div></div>' +
+  '<div class="page-head"><h2>ಪ್ರತಿಕ್ರಿಯೆ ಉತ್ತರಗಳು</h2><div class="ph-sub">ಶಿಬಿರಾರ್ಥಿಗಳ ಭಾಗ-1 ಮತ್ತು ಭಾಗ-2 ಪ್ರತಿಕ್ರಿಯೆಗಳು</div></div>' +
   '<div class="card"><div class="table-wrap"><table class="data">' +
-    '<thead><tr><th>ವಿದ್ಯಾರ್ಥಿ</th><th>ತರಬೇತಿ</th><th>ಅಧಿವೇಶನ 1-3</th><th>ಅಧಿವೇಶನ 4-5</th><th>ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ</th><th></th></tr></thead>' +
+    '<thead><tr><th>ವಿದ್ಯಾರ್ಥಿ</th><th>ತರಬೇತಿ</th><th>ಭಾಗ-1</th><th>ಭಾಗ-2</th><th>ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ</th><th></th></tr></thead>' +
     '<tbody>' + rows + '</tbody>' +
   '</table></div></div>';
 }
@@ -3246,21 +4053,24 @@ function adminCertificates(){
   const certs = DB.certificates.slice().sort((a,b) => new Date(b.issuedAt) - new Date(a.issuedAt));
   /* Every serial is minted by submit_assessment from the server-side
      register sequence, so no certificate is provisional. */
-  const rows = certs.length ? certs.map(c =>
-    '<tr>' +
+  const rows = certs.length ? certs.map(c => {
+    const holder = DB.users.find(function(u){ return u.id === c.userId; });
+    return '<tr>' +
       '<td data-label="ಪ್ರಮಾಣಪತ್ರ ಸಂಖ್ಯೆ"><span class="td-name">' + esc(c.number) + '</span></td>' +
       '<td data-label="ವಿದ್ಯಾರ್ಥಿ">' + esc(c.studentName) + '</td>' +
+      '<td data-label="ಹುದ್ದೆ">' + esc((holder && holder.designation) || '—') + '</td>' +
+      '<td data-label="ಕೆ.ಜಿ.ಐ.ಡಿ">' + esc(c.kgid || '—') + '</td>' +
       '<td data-label="ತರಬೇತಿ">' + esc(trunc(c.trainingTitle, 28)) + '</td>' +
       '<td data-label="ಅಂಕಗಳು">' + c.marks + ' / ' + c.total + '</td>' +
       '<td data-label="ಶೇಕಡಾವಾರು">' + c.pct + '%</td>' +
       '<td data-label="ನೀಡಿದ ದಿನಾಂಕ">' + esc(fmtDateTime(c.issuedAt)) + '</td>' +
-    '</tr>'
-  ).join('') : '<tr><td colspan="6"><div class="table-empty">ಇನ್ನೂ ಯಾವುದೇ ಪ್ರಮಾಣಪತ್ರಗಳನ್ನು ನೀಡಿಲ್ಲ.</div></td></tr>';
+    '</tr>';
+  }).join('') : '<tr><td colspan="8"><div class="table-empty">ಇನ್ನೂ ಯಾವುದೇ ಪ್ರಮಾಣಪತ್ರಗಳನ್ನು ನೀಡಿಲ್ಲ.</div></td></tr>';
 
   return '' +
   '<div class="page-head"><h2>ಪ್ರಮಾಣಪತ್ರ ದಾಖಲೆಗಳು</h2><div class="ph-sub">ನೀಡಲಾದ ಎಲ್ಲಾ ಪ್ರಮಾಣಪತ್ರಗಳ ದಾಖಲೆ</div></div>' +
   '<div class="card"><div class="table-wrap"><table class="data">' +
-    '<thead><tr><th>ಪ್ರಮಾಣಪತ್ರ ಸಂಖ್ಯೆ</th><th>ವಿದ್ಯಾರ್ಥಿ</th><th>ತರಬೇತಿ</th><th>ಅಂಕಗಳು</th><th>ಶೇಕಡಾವಾರು</th><th>ನೀಡಿದ ದಿನಾಂಕ</th></tr></thead>' +
+    '<thead><tr><th>ಪ್ರಮಾಣಪತ್ರ ಸಂಖ್ಯೆ</th><th>ವಿದ್ಯಾರ್ಥಿ</th><th>ಹುದ್ದೆ</th><th>ಕೆ.ಜಿ.ಐ.ಡಿ</th><th>ತರಬೇತಿ</th><th>ಅಂಕಗಳು</th><th>ಶೇಕಡಾವಾರು</th><th>ನೀಡಿದ ದಿನಾಂಕ</th></tr></thead>' +
     '<tbody>' + rows + '</tbody>' +
   '</table></div></div>';
 }
@@ -3279,7 +4089,7 @@ function adminSettings(){
   '<div class="card" style="margin-bottom:18px;">' +
     '<h3>ಡೇಟಾ ಸಾರಾಂಶ</h3>' +
     '<div class="row" style="gap:10px;">' +
-      '<span class="badge blue">ತರಬೇತಿಗಳು: ' + DB.trainings.length + '</span>' +
+      '<span class="badge blue">ತರಬೇತಿಗಳು: ' + DB.trainings.filter(function(t){ return !t.archived; }).length + '</span>' +
       '<span class="badge blue">ಸಲ್ಲಿಕೆಗಳು: ' + DB.submissions.length + '</span>' +
       '<span class="badge gold">ಪ್ರಮಾಣಪತ್ರಗಳು: ' + DB.certificates.length + '</span>' +
       '<span class="badge grey">ಖಾತೆಗಳು: ' + (authIsAdmin() ? ACCOUNTS.list.length : 1) + '</span>' +
@@ -3332,12 +4142,41 @@ let certDesState = { design:null, bg:'', selectedId:null, dragging:null };
 function defaultCertDesign(){
   return { useCustom:false, aspect:1.414, fields:[] };
 }
+
+/* Only the six supported automatic labels are kept. An older design that
+   still carries Training Topic / Marks / Email / Training Date fields is
+   mapped onto the new labels (Training Date -> Training Start Date) and the
+   rest are dropped, so the designer never shows an outdated label again.
+   Static text placed by hand is left untouched: it carries no data. */
+function normalizeCertFields(fields){
+  const seen = {};
+  const out = [];
+  (Array.isArray(fields) ? fields : []).forEach(function(f){
+    if(!f || !f.id) return;
+    if(f.type !== 'auto'){ out.push(f); return; }
+    const key = CERT_KEY_ALIASES[f.key];
+    if(!key) return;                       /* outdated automatic label */
+    if(seen[key]) return;                  /* same label twice */
+    seen[key] = true;
+    out.push(Object.assign({}, f, { key: key, type:'auto' }));
+  });
+  return out;
+}
+function sanitizeCertDesign(design){
+  const d = design || defaultCertDesign();
+  return {
+    useCustom: !!d.useCustom,
+    aspect: Number(d.aspect) || 1.414,
+    fields: normalizeCertFields(d.fields)
+  };
+}
+
 function loadCertDesign(){
   try{
     const raw = localStorage.getItem(CERT_DESIGN_KEY);
     if(raw){
       const d = JSON.parse(raw);
-      if(d && Array.isArray(d.fields)) return d;
+      if(d && Array.isArray(d.fields)) return sanitizeCertDesign(d);
     }
   }catch(e){}
   return defaultCertDesign();
@@ -3364,37 +4203,42 @@ function getActiveCertDesign(){
   return { design: loadCertDesign(), bg: loadCertBg() };
 }
 
+/* Which participant / training the designer previews. The administrator can
+   switch both, so label positions are checked against real data. */
+const certPreview = { studentId:'', trainingId:'' };
+
+function certPreviewStudents(){
+  return DB.users.filter(function(u){ return u.role !== 'admin'; });
+}
+
 function certSampleData(){
-  const u = DB.users.find(x => x.role === 'student') || DB.users[0];
-  const t = DB.trainings[0];
+  const students = certPreviewStudents();
+  const u = students.find(function(x){ return x.id === certPreview.studentId; }) ||
+            students[0] ||
+            DB.users[0] || null;
+  const t = DB.trainings.find(function(x){ return x.id === certPreview.trainingId; }) ||
+            DB.trainings[0] || null;
+  const start = t ? (displayDate(t.startDate) || displayDate(t.date)) : '';
+  const end   = t ? (displayDate(t.endDate) || start) : '';
   return {
-    studentName:    u ? u.name : 'Sample Student',
-    kgid:           'KGID123456',
-    email:          'sample@example.gov.in',
-    trainingTitle:  t ? t.title : 'Sample Training',
-    trainingTopic:  t ? t.topic : '',
-    trainingDate:   t ? t.date  : '23-11-2026',
-    marks:          '8',
-    totalMarks:     '10',
-    percentage:     '80%',
-    certNo:         'DTI-BNG-' + new Date().getFullYear() + '-0001',
-    institute:      INSTITUTE
+    studentName:   u ? (u.name || 'Sample Student') : 'Sample Student',
+    designation:   u ? (u.designation || '') : '',
+    kgid:          u ? (u.kgid || '') : '',
+    trainingName:  t ? t.title : 'Sample Training',
+    trainingStart: start,
+    trainingEnd:   end
   };
 }
+
 function autoFieldValue(key, sample){
   const s = sample || {};
   switch(key){
     case 'studentName':   return s.studentName   || '';
+    case 'designation':   return s.designation   || '';
     case 'kgid':          return s.kgid          || '';
-    case 'email':         return s.email         || '';
-    case 'trainingTitle': return s.trainingTitle || '';
-    case 'trainingTopic': return s.trainingTopic || '';
-    case 'trainingDate':  return s.trainingDate  || '';
-    case 'marks':         return s.marks         || '';
-    case 'totalMarks':    return s.totalMarks    || '';
-    case 'percentage':    return s.percentage    || '';
-    case 'certNo':        return s.certNo        || '';
-    case 'institute':     return s.institute     || '';
+    case 'trainingName':  return s.trainingName  || '';
+    case 'trainingStart': return s.trainingStart || '';
+    case 'trainingEnd':   return s.trainingEnd   || '';
     default:              return '';
   }
 }
@@ -3435,8 +4279,12 @@ function renderFieldPanel(field){
   const fontOpts = Object.keys(CERT_FONTS).map(k =>
     '<option value="' + k + '"' + (field.fontFamily === k ? ' selected' : '') + '>' + CERT_FONTS[k].label + '</option>'
   ).join('');
+  const labelOf = function(key){
+    const found = CERT_LABELS.find(function(l){ return l.key === key; });
+    return found ? found.label : key;
+  };
   const typeInfo = field.type === 'auto'
-    ? '<span class="certdes-tag">Auto · ' + esc(field.key) + '</span>'
+    ? '<span class="certdes-tag">Auto · ' + esc(labelOf(field.key)) + '</span>'
     : '<span class="certdes-tag static">Static</span>';
   const staticEdit = field.type === 'static'
     ? '<label class="field" style="margin-bottom:10px;"><span>Text</span><input type="text" data-cd-prop="text" value="' + esc(field.text || '') + '"></label>'
@@ -3468,23 +4316,30 @@ function adminCertDesigner(){
     certDesState.design = loadCertDesign();
     certDesState.bg = loadCertBg();
   }
+  certDesState.design = sanitizeCertDesign(certDesState.design);
   const d = certDesState.design;
   const bg = certDesState.bg;
   const sample = certSampleData();
 
-  const autoFields = [
-    {key:'studentName',   label:'Student Name'},
-    {key:'kgid',          label:'KGID Number'},
-    {key:'email',         label:'Email'},
-    {key:'trainingTitle', label:'Training Title'},
-    {key:'trainingTopic', label:'Training Topic'},
-    {key:'trainingDate',  label:'Training Date'},
-    {key:'marks',         label:'Marks Obtained'},
-    {key:'totalMarks',    label:'Total Marks'},
-    {key:'percentage',    label:'Percentage'},
-    {key:'certNo',        label:'Certificate ID'},
-    {key:'institute',     label:'Institute Name'}
-  ];
+  const previewStudents = certPreviewStudents();
+  const previewStudentOpts = previewStudents.length
+    ? previewStudents.map(function(u){
+        const nm = u.name || u.email || u.id;
+        return '<option value="' + esc(u.id) + '"' +
+          (u.id === certPreview.studentId || (!certPreview.studentId && u.id === previewStudents[0].id) ? ' selected' : '') +
+          '>' + esc(nm) + (u.kgid ? ' · ' + esc(u.kgid) : '') + '</option>';
+      }).join('')
+    : '<option value="">— ಯಾವುದೇ ಶಿಬಿರಾರ್ಥಿ ಖಾತೆ ಇಲ್ಲ —</option>';
+  const previewTrainingOpts = DB.trainings.length
+    ? DB.trainings.map(function(t){
+        return '<option value="' + esc(t.id) + '"' +
+          (t.id === certPreview.trainingId || (!certPreview.trainingId && t.id === DB.trainings[0].id) ? ' selected' : '') +
+          '>' + esc(t.title) + '</option>';
+      }).join('')
+    : '<option value="">— ಯಾವುದೇ ತರಬೇತಿ ಇಲ್ಲ —</option>';
+
+  /* the six supported labels — no outdated fields */
+  const autoFields = CERT_LABELS;
 
   const fieldsHtml = d.fields.map(f => renderEditorField(f, sample)).join('');
   const selectedField = d.fields.find(f => f.id === certDesState.selectedId);
@@ -3519,6 +4374,15 @@ function adminCertDesigner(){
     '</div>' +
 
     '<div class="certdes-panel">' +
+      '<div class="certdes-section">' +
+        '<h4>Preview data</h4>' +
+        '<p class="certdes-info">Real participant and training details are shown on the canvas, so you can check every label position.</p>' +
+        '<label class="field" style="margin-bottom:10px;"><span>Participant</span>' +
+          '<select data-cd-preview="student">' + previewStudentOpts + '</select></label>' +
+        '<label class="field" style="margin-bottom:0;"><span>Training</span>' +
+          '<select data-cd-preview="training">' + previewTrainingOpts + '</select></label>' +
+      '</div>' +
+
       '<div class="certdes-section">' +
         '<h4>1. Certificate Background</h4>' +
         '<p class="certdes-info">Upload a PNG (or JPG) of your scanned certificate. Max ~5MB.</p>' +
@@ -3587,6 +4451,15 @@ function syncCertFieldPanel(field){
   });
 }
 function bindCertDesInputs(){
+  $$('[data-cd-preview]').forEach(function(el){
+    el.addEventListener('change', function(){
+      const which = el.getAttribute('data-cd-preview');
+      if(which === 'student') certPreview.studentId = el.value;
+      if(which === 'training') certPreview.trainingId = el.value;
+      render();
+      window.scrollTo({ top:0, behavior:'smooth' });
+    });
+  });
   $$('[data-cd-prop]').forEach(el => {
     el.addEventListener('input', function(){
       if(!certDesState.selectedId || !certDesState.design) return;
@@ -3749,20 +4622,17 @@ function removeCertBackground(){
 
 /* ---- Student custom certificate renderer ---- */
 function renderCustomCertificate(t, sub, certNo, design, bg){
+  const start = displayDate(t.startDate) || displayDate(t.date);
+  const end   = displayDate(t.endDate) || start;
   const sample = {
-    studentName:    sub.details.name || sub.userName,
-    kgid:           sub.details.kgid || '—',
-    email:          sub.details.email || '—',
-    trainingTitle:  t.title,
-    trainingTopic:  t.topic,
-    trainingDate:   t.date,
-    marks:          String(sub.result.marks),
-    totalMarks:     String(sub.result.total),
-    percentage:     sub.result.pct + '%',
-    certNo:         certNo,
-    institute:      INSTITUTE
+    studentName:   (sub.details && sub.details.name) || sub.userName || '',
+    designation:   designationFor(sub),
+    kgid:          (sub.details && sub.details.kgid) || sub.kgid || '',
+    trainingName:  t.title,
+    trainingStart: start || '',
+    trainingEnd:   end || ''
   };
-  const fieldsHtml = design.fields.map(f => {
+  const fieldsHtml = sanitizeCertDesign(design).fields.map(f => {
     const text = f.type === 'auto' ? autoFieldValue(f.key, sample) : (f.text || '');
     return '<div class="cert-custom-field" style="' + certFieldStyle(f) + '">' + esc(text) + '</div>';
   }).join('');
@@ -4091,10 +4961,13 @@ function exportBackupCSV(which){
                 r.passed ? 'ಉತ್ತೀರ್ಣ' : 'ಅನುತ್ತೀರ್ಣ', sb.certificateNo || '-', sb.submittedAt || ''];
       });
     }else if(which === 'trainings'){
-      header = ['ಶೀರ್ಷಿಕೆ','ವಿಷಯ','ದಿನಾಂಕ','ಉತ್ತೀರ್ಣ %','ಪ್ರಶ್ನೆಗಳು','ಪ್ರಕಟಿತ','ಸಂಗ್ರಹಿತ','id'];
+      header = ['ಶೀರ್ಷಿಕೆ','ಆರಂಭ ದಿನಾಂಕ','ಅಂತ್ಯ ದಿನಾಂಕ','ಉತ್ತೀರ್ಣ %','MCQ ಪ್ರಶ್ನೆಗಳು','ಭಾಗ-1','ಭಾಗ-2','ಪ್ರಕಟಿತ','ಅಳಿಸಲಾಗಿದೆ','id'];
       rows = p.trainings.map(function(t){
-        return [t.title||'', t.topic||'', t.date||'', t.passing||70,
-                (t.questions||[]).length, t.published?'ಹೌದು':'ಇಲ್ಲ', t.archived?'ಹೌದು':'ಇಲ್ಲ', t._id||''];
+        return [t.title||'', displayDate(t.startDate), displayDate(t.endDate), t.passing||70,
+                (t.questions||[]).length,
+                ((t.feedback && t.feedback.part1) || []).filter(function(b){ return !b.deleted; }).length,
+                ((t.feedback && t.feedback.part2) || []).filter(function(q){ return !q.deleted; }).length,
+                t.published?'ಹೌದು':'ಇಲ್ಲ', t.archived?'ಹೌದು':'ಇಲ್ಲ', t._id||''];
       });
     }else if(which === 'certificates'){
       header = ['ಸಂಖ್ಯೆ','ವಿದ್ಯಾರ್ಥಿ','ತರಬೇತಿ','ಅಂಕಗಳು','ಶೇಕಡಾವಾರು','issuedAt'];
@@ -4176,26 +5049,67 @@ function viewSubmissionModal(id){
   if(!s){ toast('ಸಲ್ಲಿಕೆ ಕಂಡುಬಂದಿಲ್ಲ.','error'); return; }
   const t = getTraining(s.trainingId);
 
-  const fbRows = (() => {
-    if(!t || !t.feedback || !t.feedback.questions || !t.feedback.questions.length){
-      return '<p class="muted small">ಈ ತರಬೇತಿಗೆ ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆಗಳು ವ್ಯಾಖ್ಯಾನಿಸಲಾಗಿಲ್ಲ.</p>';
+  const fb = s.feedback || {};
+
+  /* ಭಾಗ-1 — the day-wise question blocks, with the old session ratings as a
+     fallback for submissions collected before the update */
+  const part1Rows = (() => {
+    if(!t) return '<p class="muted small">ತರಬೇತಿ ಲಭ್ಯವಿಲ್ಲ.</p>';
+    const blocks = part1Active(t);
+    if(blocks.length){
+      return blocks.map(function(b, i){
+        const r = (fb.ratings || {})[b.id] || (fb.ratings || {})[String(i)] || '';
+        const meta = [
+          b.day,
+          displayDate(b.date),
+          (str(b.sessionFrom) || str(b.sessionTo)) ? ('ಅಧಿವೇಶನ ' + (b.sessionFrom || '?') + '–' + (b.sessionTo || b.sessionFrom || '?')) : '',
+          b.subject ? ('ವಿಷಯ: ' + b.subject) : '',
+          b.lecturer ? ('ಉಪನ್ಯಾಸಕರು: ' + b.lecturer) : ''
+        ].filter(Boolean).join(' · ');
+        return '<div style="padding:10px 0;border-bottom:1px solid var(--line-soft);">' +
+          '<div class="small strong" style="color:var(--darkblue);">' + (i + 1) + '. ' + esc(b.question || b.subject || '—') + '</div>' +
+          (meta ? '<div class="tiny muted" style="margin-top:3px;">' + esc(meta) + '</div>' : '') +
+          '<div class="small" style="margin-top:4px;">ಅಭಿಪ್ರಾಯ: <b>' + esc(r || '—') + '</b></div>' +
+        '</div>';
+      }).join('');
     }
-    return t.feedback.questions.map((q, i) => {
-      const ans = (s.feedback && s.feedback.answers) ? s.feedback.answers[q.id] : '';
-      return '<div style="padding:10px 0;border-bottom:1px solid var(--line-soft);">' +
-        '<div class="small strong" style="color:var(--darkblue);">' + (i+1) + '. ' + esc(q.text) + '</div>' +
-        '<div class="small" style="margin-top:4px;">' + esc(ans || '—') + '</div>' +
-      '</div>';
-    }).join('');
+    const legacy = (t.feedback && t.feedback.sessions) || [];
+    if(legacy.length){
+      return legacy.map(function(sess, i){
+        const r = (fb.ratings || {})[String(i)] || '';
+        return '<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);">' +
+          '<div class="small strong" style="color:var(--darkblue);">' + esc(sess.heading || sess.topic || ('ಅಧಿವೇಶನ ' + (i + 1))) + '</div>' +
+          '<div class="small">' + esc(r || '—') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+    return '<p class="muted small">ಈ ತರಬೇತಿಗೆ ಭಾಗ-1 ಪ್ರಶ್ನೆಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ.</p>';
   })();
 
-  const ratingsHtml = (() => {
-    if(!t || !t.feedback || !t.feedback.sessions || !t.feedback.sessions.length) return '';
-    return t.feedback.sessions.map((sess, i) => {
-      const r = (s.feedback && s.feedback.ratings) ? s.feedback.ratings[String(i)] : '';
-      return '<div class="small" style="padding:5px 0;">' +
-        '<b>' + esc(sess.heading) + ':</b> ' + esc(r || '—') + '</div>';
-    }).join('');
+  /* ಭಾಗ-2 — choose / rating / descriptive answers */
+  const part2Rows = (() => {
+    if(!t) return '<p class="muted small">ತರಬೇತಿ ಲಭ್ಯವಿಲ್ಲ.</p>';
+    const qs = part2Active(t);
+    if(qs.length){
+      return qs.map(function(q, i){
+        const ans = (fb.answers || {})[q.id];
+        return '<div style="padding:10px 0;border-bottom:1px solid var(--line-soft);">' +
+          '<div class="small strong" style="color:var(--darkblue);">' + (i + 1) + '. ' + esc(q.text) + '</div>' +
+          '<div class="small" style="margin-top:4px;white-space:pre-line;">' + esc(str(ans).trim() || '—') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+    const legacy = (t.feedback && t.feedback.questions) || [];
+    if(legacy.length){
+      return legacy.map(function(q, i){
+        const ans = (fb.answers || {})[q.id];
+        return '<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);">' +
+          '<div class="small strong" style="color:var(--darkblue);">' + (i + 1) + '. ' + esc(q.text) + '</div>' +
+          '<div class="small" style="white-space:pre-line;">' + esc(str(ans).trim() || '—') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+    return '<p class="muted small">ಈ ತರಬೇತಿಗೆ ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ.</p>';
   })();
 
   /* The answer key stays on the server (it is never sent to a browser), so
@@ -4227,14 +5141,15 @@ function viewSubmissionModal(id){
     '</div>' +
     '<div class="card-soft" style="margin-bottom:14px;font-size:13.5px;line-height:2;">' +
       '<div><b>ಇ-ಮೇಲ್:</b> ' + esc(s.details.email || '—') + '</div>' +
+      '<div><b>ಹುದ್ದೆ (Designation):</b> ' + esc(designationFor(s) || '—') + '</div>' +
       '<div><b>ಕೆ.ಜಿ.ಐ.ಡಿ / HRMS:</b> ' + esc(s.details.kgid || '—') + '</div>' +
-      '<div><b>ತರಬೇತಿ ದಿನಾಂಕ:</b> ' + esc(s.trainingDate) + '</div>' +
+      '<div><b>ತರಬೇತಿ ಅವಧಿ:</b> ' + esc(t ? dateRange(t.startDate, t.endDate) : s.trainingDate) + '</div>' +
       '<div><b>ಅಂಕಗಳು:</b> ' + s.result.marks + ' / ' + s.result.total + ' &nbsp;·&nbsp; <b>ಶೇಕಡಾವಾರು:</b> ' + s.result.pct + '%</div>' +
       '<div><b>ಪ್ರಮಾಣಪತ್ರ:</b> ' + (s.certificateNo ? esc(s.certificateNo) : 'ನೀಡಿಲ್ಲ') + '</div>' +
       '<div><b>ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ:</b> ' + esc(fmtDateTime(s.submittedAt)) + '</div>' +
     '</div>' +
-    '<h4 style="color:var(--navy);margin-top:16px;">ಅಧಿವೇಶನ ಮೌಲ್ಯಮಾಪನ</h4>' + (ratingsHtml || '<p class="muted small">—</p>') +
-    '<h4 style="color:var(--navy);margin-top:16px;">ಪ್ರತಿಕ್ರಿಯೆ ಉತ್ತರಗಳು</h4>' + fbRows +
+    '<h4 style="color:var(--navy);margin-top:16px;">ಭಾಗ-1 — ದಿನದ ಹಿಮ್ಮಾಹಿತಿ</h4>' + part1Rows +
+    '<h4 style="color:var(--navy);margin-top:16px;">ಭಾಗ-2 — ತರಬೇತಿ ಉಪಯುಕ್ತತೆ ಕುರಿತು ಹಿಮ್ಮಾಹಿತಿ</h4>' + part2Rows +
     '<h4 style="color:var(--navy);margin-top:16px;">ಮೌಲ್ಯಮಾಪನ ಉತ್ತರಗಳು</h4>' + answerRows +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" data-action="modal-close">ಮುಚ್ಚಿ</button>' +
@@ -4358,6 +5273,20 @@ document.addEventListener('click', function(e){
         if(!isEmail(d.email)){ showStageMsg('ಸರಿಯಾದ ಇ-ಮೇಲ್ ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ.','error'); break; }
         if(!String(d.name||'').trim()){ showStageMsg('ಹೆಸರನ್ನು ನಮೂದಿಸಿ.','error'); break; }
         if(!String(d.kgid||'').trim()){ showStageMsg('ಕೆ.ಜಿ.ಐ.ಡಿ / ಹೆಚ್ ಆರ್ ಎಂಎಸ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ.','error'); break; }
+        if(!String(d.designation||'').trim()){ showStageMsg('ಹುದ್ದೆ (Designation) ನಮೂದಿಸಿ.','error'); break; }
+
+        /* keep the profile in step so the certificate and the admin's
+           accounts table show the same designation (self-service column) */
+        const desig = String(d.designation).trim();
+        if(str(u.designation) !== desig){
+          u.designation = desig;
+          if(AUTH.profile) AUTH.profile.designation = desig;
+          sb.from('profiles').update({ designation: desig }).eq('id', u.id)
+            .then(function(res){
+              if(res && res.error) console.warn('[profile] designation not saved', res.error.message);
+            });
+        }
+
         state.stage = 2;
         state.draft.stage = 2;
         persistDraft();
@@ -4432,17 +5361,62 @@ document.addEventListener('click', function(e){
       if(!t) break;
       confirmDialog(
         'ತರಬೇತಿ ಅಳಿಸುವುದೇ?',
-        '“' + t.title + '” ತರಬೇತಿಯನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ. ಇದಕ್ಕೆ ಸಂಬಂಧಿಸಿದ ಸಲ್ಲಿಕೆಗಳು ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ದಾಖಲೆಗಳು ಉಳಿಯುತ್ತವೆ.',
+        '“' + t.title + '” ತರಬೇತಿಯನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ. ಇದು “ಅಳಿಸಿದ ತರಬೇತಿಗಳು” ಪಟ್ಟಿಗೆ ಸೇರುತ್ತದೆ — ಮರುಸ್ಥಾಪಿಸಬಹುದು. ' +
+        'ಸಂಬಂಧಿತ ಸಲ್ಲಿಕೆಗಳು ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ದಾಖಲೆಗಳು ಉಳಿಯುತ್ತವೆ.',
         function(){
-          sb.from('trainings').delete().eq('id', id)
+          /* soft delete: the row and all of its records stay in place */
+          sb.from('trainings').update({ archived:true, published:false }).eq('id', id)
             .then(function(res){
               if(res.error) throw res.error;
-              toast('ತರಬೇತಿ ಅಳಿಸಲಾಗಿದೆ.','success');
+              toast('ತರಬೇತಿ ಅಳಿಸಲಾಗಿದೆ (ಮರುಸ್ಥಾಪಿಸಬಹುದು).','success');
               return reloadPortalData();
             })
             .catch(function(err){
               console.warn('[training] delete failed', err && (err.message || err.code));
               toast(dataErrorMessage(err), 'error');
+            });
+        },
+        true
+      );
+      break;
+    }
+    case 'training-restore': {
+      const id = el.getAttribute('data-id');
+      sb.from('trainings').update({ archived:false, published:true }).eq('id', id)
+        .then(function(res){
+          if(res.error) throw res.error;
+          toast('ತರಬೇತಿ ಮರುಸ್ಥಾಪಿಸಲಾಗಿದೆ.', 'success');
+          return reloadPortalData();
+        })
+        .catch(function(err){
+          console.warn('[training] restore failed', err && (err.message || err.code));
+          toast(dataErrorMessage(err), 'error');
+        });
+      break;
+    }
+    case 'training-purge': {
+      const id = el.getAttribute('data-id');
+      const t = getTraining(id);
+      if(!t) break;
+      confirmDialog(
+        'ಶಾಶ್ವತವಾಗಿ ಅಳಿಸುವುದೇ?',
+        '“' + t.title + '” ತರಬೇತಿ ಮತ್ತು ಅದರ ಪ್ರಶ್ನೆಗಳು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲ್ಪಡುತ್ತವೆ. ' +
+        'ಸಲ್ಲಿಕೆಗಳು ಇದ್ದರೆ ಅಳಿಸುವಿಕೆ ನಡೆಯುವುದಿಲ್ಲ (ಡೇಟಾ ಸುರಕ್ಷತೆಗಾಗಿ) — ಬದಲಿಗೆ ಅಳಿಸಿದ ಪಟ್ಟಿಯಲ್ಲಿಯೇ ಇರಿಸಿ.',
+        function(){
+          sb.from('trainings').delete().eq('id', id)
+            .then(function(res){
+              if(res.error) throw res.error;
+              toast('ತರಬೇತಿ ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲಾಗಿದೆ.','success');
+              return reloadPortalData();
+            })
+            .catch(function(err){
+              console.warn('[training] purge failed', err && (err.message || err.code));
+              const code = String((err && (err.code || err.message)) || '');
+              if(code.indexOf('23503') > -1 || code.toLowerCase().indexOf('foreign key') > -1){
+                toast('ಈ ತರಬೇತಿಗೆ ಸಲ್ಲಿಕೆಗಳು ಇರುವುದರಿಂದ ಶಾಶ್ವತ ಅಳಿಸುವಿಕೆ ಸಾಧ್ಯವಿಲ್ಲ.', 'error');
+              }else{
+                toast(dataErrorMessage(err), 'error');
+              }
             });
         },
         true
@@ -4457,14 +5431,15 @@ document.addEventListener('click', function(e){
     case 'preview-training': {
       const t = getTraining(el.getAttribute('data-id'));
       if(!t) break;
+      const p1c = part1Active(t).length, p2c = part2Active(t).length;
       openModal(
         '<h3>' + esc(t.title) + '</h3>' +
-        '<p class="small" style="line-height:1.9;">“' + esc(t.topic) + '”</p>' +
         '<div class="card-soft small" style="line-height:2;">' +
-          '<div><b>ದಿನಾಂಕ:</b> ' + esc(t.date) + '</div>' +
+          '<div><b>ತರಬೇತಿ ಆರಂಭ:</b> ' + esc(displayDate(t.startDate) || '—') + '</div>' +
+          '<div><b>ತರಬೇತಿ ಅಂತ್ಯ:</b> ' + esc(displayDate(t.endDate) || '—') + '</div>' +
           '<div><b>ಸಂಸ್ಥೆ:</b> ' + esc(t.institute || INSTITUTE) + '</div>' +
-          '<div><b>ವರ್ಗ:</b> ' + esc(t.category || '—') + '</div>' +
-          '<div><b>ಪ್ರಶ್ನೆಗಳು:</b> ' + t.questions.length + ' &nbsp;·&nbsp; <b>ಉತ್ತೀರ್ಣ ಮಿತಿ:</b> ' + (t.passing||70) + '%</div>' +
+          '<div><b>MCQ ಪ್ರಶ್ನೆಗಳು:</b> ' + t.questions.length + ' &nbsp;·&nbsp; <b>ಉತ್ತೀರ್ಣ ಮಿತಿ:</b> ' + (t.passing||70) + '%</div>' +
+          '<div><b>ಭಾಗ-1 ಪ್ರಶ್ನೆಗಳು:</b> ' + p1c + ' &nbsp;·&nbsp; <b>ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳು:</b> ' + p2c + '</div>' +
         '</div>' +
         '<h4 style="margin-top:16px;color:var(--navy);">ಮೌಲ್ಯಮಾಪನ ಪ್ರಶ್ನೆಗಳು</h4>' +
         t.questions.map((q,i) =>
@@ -4480,33 +5455,150 @@ document.addEventListener('click', function(e){
       );
       break;
     }
-    case 'add-session': {
+    /* ---------- ಭಾಗ-1 question blocks ---------- */
+    case 'p1-add': {
       if(!state.editing) break;
-      if(!state.editing.feedback.sessions) state.editing.feedback.sessions = [];
-      state.editing.feedback.sessions.push({ heading:'', topic:'', lecturer:'' });
+      const fb = state.editing.feedback ||
+        (state.editing.feedback = { notice:'', part1:[], part2:[], scope:{ day:'one', date:'one', sessions:'one' } });
+      if(!Array.isArray(fb.part1)) fb.part1 = [];
+      fb.part1.push(blankPart1Block());
       render();
+      const blocks = document.querySelectorAll('.p1-block');
+      if(blocks.length){
+        blocks[blocks.length - 1].scrollIntoView({ behavior:'smooth', block:'center' });
+        const ta = blocks[blocks.length - 1].querySelector('textarea');
+        if(ta) setTimeout(function(){ ta.focus(); }, 250);
+      }
       break;
     }
-    case 'del-session': {
+    case 'p1-del': {
       if(!state.editing) break;
       const i = Number(el.getAttribute('data-i'));
-      state.editing.feedback.sessions.splice(i, 1);
-      render();
+      const b = (state.editing.feedback.part1 || [])[i];
+      if(!b) break;
+      confirmDialog(
+        'ಭಾಗ-1 ಪ್ರಶ್ನೆ ಅಳಿಸುವುದೇ?',
+        'ಇದನ್ನು “ಅಳಿಸಿದ ಪ್ರಶ್ನೆಗಳು” ಪಟ್ಟಿಯಿಂದ ಮತ್ತೆ ಮರುಸ್ಥಾಪಿಸಬಹುದು. ಉಳಿಸಿದ ಪ್ರತಿಕ್ರಿಯೆಗಳಿಗೆ ಏನೂ ಆಗುವುದಿಲ್ಲ.',
+        function(){ b.deleted = true; render(); },
+        true
+      );
       break;
     }
-    case 'add-fbq': {
-      if(!state.editing) break;
-      if(!state.editing.feedback.questions) state.editing.feedback.questions = [];
-      state.editing.feedback.questions.push({
-        id: uid('f'), text:'', type:'radio', options:['','','','']
-      });
-      render();
-      break;
-    }
-    case 'del-fbq': {
+    case 'p1-restore': {
       if(!state.editing) break;
       const i = Number(el.getAttribute('data-i'));
-      state.editing.feedback.questions.splice(i, 1);
+      const b = (state.editing.feedback.part1 || [])[i];
+      if(!b) break;
+      b.deleted = false;
+      render();
+      toast('ಭಾಗ-1 ಪ್ರಶ್ನೆ ಮರುಸ್ಥಾಪಿಸಲಾಗಿದೆ.', 'success');
+      break;
+    }
+    case 'p1-purge': {
+      if(!state.editing) break;
+      const i = Number(el.getAttribute('data-i'));
+      confirmDialog(
+        'ಶಾಶ್ವತವಾಗಿ ಅಳಿಸುವುದೇ?',
+        'ಈ ಪ್ರಶ್ನೆಯನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲಾಗುತ್ತದೆ — ಮರುಸ್ಥಾಪಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+        function(){ state.editing.feedback.part1.splice(i, 1); render(); },
+        true
+      );
+      break;
+    }
+    case 'p1-scope': {
+      if(!state.editing || !state.editing.feedback) break;
+      const f = el.getAttribute('data-f');
+      const mode = el.getAttribute('data-mode') === 'all' ? 'all' : 'one';
+      const fb = state.editing.feedback;
+      if(!fb.scope) fb.scope = { day:'one', date:'one', sessions:'one' };
+      fb.scope[f] = mode;
+      render();
+      toast(mode === 'all'
+        ? 'ಈಗ ಬದಲಾವಣೆ ಎಲ್ಲಾ ಭಾಗ-1 ಪ್ರಶ್ನೆಗಳಿಗೂ ಅನ್ವಯವಾಗುತ್ತದೆ.'
+        : 'ಈಗ ಬದಲಾವಣೆ ಈ ಪ್ರಶ್ನೆಗೆ ಮಾತ್ರ ಅನ್ವಯವಾಗುತ್ತದೆ.', 'info');
+      break;
+    }
+
+    /* ---------- ಭಾಗ-2 questions ---------- */
+    case 'p2-add': {
+      if(!state.editing) break;
+      const fb = state.editing.feedback ||
+        (state.editing.feedback = { notice:'', part1:[], part2:[], scope:{ day:'one', date:'one', sessions:'one' } });
+      if(!Array.isArray(fb.part2)) fb.part2 = [];
+      fb.part2.push({ id: uid('p2'), text:'', format:'choice', options:['',''], deleted:false });
+      render();
+      break;
+    }
+    case 'p2-del': {
+      if(!state.editing) break;
+      const i = Number(el.getAttribute('data-i'));
+      const q = (state.editing.feedback.part2 || [])[i];
+      if(!q) break;
+      confirmDialog(
+        'ಭಾಗ-2 ಪ್ರಶ್ನೆ ಅಳಿಸುವುದೇ?',
+        'ಇದನ್ನು “ಅಳಿಸಿದ ಪ್ರಶ್ನೆಗಳು” ಪಟ್ಟಿಯಿಂದ ಮತ್ತೆ ಮರುಸ್ಥಾಪಿಸಬಹುದು.',
+        function(){ q.deleted = true; render(); },
+        true
+      );
+      break;
+    }
+    case 'p2-restore': {
+      if(!state.editing) break;
+      const i = Number(el.getAttribute('data-i'));
+      const q = (state.editing.feedback.part2 || [])[i];
+      if(!q) break;
+      q.deleted = false;
+      render();
+      toast('ಭಾಗ-2 ಪ್ರಶ್ನೆ ಮರುಸ್ಥಾಪಿಸಲಾಗಿದೆ.', 'success');
+      break;
+    }
+    case 'p2-purge': {
+      if(!state.editing) break;
+      const i = Number(el.getAttribute('data-i'));
+      confirmDialog(
+        'ಶಾಶ್ವತವಾಗಿ ಅಳಿಸುವುದೇ?',
+        'ಈ ಪ್ರಶ್ನೆಯನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲಾಗುತ್ತದೆ — ಮರುಸ್ಥಾಪಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+        function(){ state.editing.feedback.part2.splice(i, 1); render(); },
+        true
+      );
+      break;
+    }
+    case 'p2-up': {
+      if(!state.editing) break;
+      const arr = state.editing.feedback.part2 || [];
+      const i = Number(el.getAttribute('data-i'));
+      if(i <= 0 || i >= arr.length) break;
+      const tmp = arr[i-1]; arr[i-1] = arr[i]; arr[i] = tmp;
+      render();
+      break;
+    }
+    case 'p2-down': {
+      if(!state.editing) break;
+      const arr = state.editing.feedback.part2 || [];
+      const i = Number(el.getAttribute('data-i'));
+      if(i < 0 || i >= arr.length - 1) break;
+      const tmp = arr[i+1]; arr[i+1] = arr[i]; arr[i] = tmp;
+      render();
+      break;
+    }
+    case 'p2-opt-add': {
+      if(!state.editing) break;
+      const q = (state.editing.feedback.part2 || [])[Number(el.getAttribute('data-i'))];
+      if(!q || q.format === 'text') break;
+      if(!Array.isArray(q.options)) q.options = [];
+      if(q.options.length >= 20){ toast('ಗರಿಷ್ಠ 20 ಆಯ್ಕೆಗಳು.', 'info'); break; }
+      q.options.push(q.format === 'rating' ? String(q.options.length + 1) : '');
+      render();
+      break;
+    }
+    case 'p2-opt-del': {
+      if(!state.editing) break;
+      const i = Number(el.getAttribute('data-i'));
+      const j = Number(el.getAttribute('data-j'));
+      const q = (state.editing.feedback.part2 || [])[i];
+      if(!q || !Array.isArray(q.options)) break;
+      if(q.options.length <= 2){ toast('ಕನಿಷ್ಠ ಎರಡು ಆಯ್ಕೆಗಳು ಬೇಕು.', 'error'); break; }
+      q.options.splice(j, 1);
       render();
       break;
     }
@@ -4845,6 +5937,13 @@ document.addEventListener('change', function(e){
       if(!state.draft.feedback) state.draft.feedback = { ratings:{}, answers:{} };
       if(!state.draft.feedback.answers) state.draft.feedback.answers = {};
       state.draft.feedback.answers[fbGroup] = t.value;
+      persistDraft();
+    }
+    const p1Group = t.getAttribute('data-p1rate');
+    if(p1Group && state.draft){
+      if(!state.draft.feedback) state.draft.feedback = { ratings:{}, answers:{} };
+      if(!state.draft.feedback.ratings) state.draft.feedback.ratings = {};
+      state.draft.feedback.ratings[p1Group] = t.value;
       persistDraft();
     }
   }
