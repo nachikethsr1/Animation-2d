@@ -478,6 +478,26 @@ input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink);}
   margin-top:clamp(5px,1vw,10px);position:relative;z-index:3;
 }
 .cert-toolbar{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:22px 0 0;}
+/* the student certificate is either the administrator's saved design or this
+   explanation — never a substitute layout */
+.cert-pending{
+  max-width:640px;margin:10px auto;padding:34px 26px;text-align:center;
+  background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);
+  border-radius:var(--radius);box-shadow:var(--shadow-sm);
+}
+.cert-pending.is-error{border-left-color:var(--red);}
+.cert-pending .cp-icon{display:flex;align-items:center;justify-content:center;min-height:30px;margin-bottom:12px;color:var(--gold);}
+.cert-pending.is-error .cp-icon{color:var(--red);}
+.cert-pending .cp-title{font-size:17px;font-weight:700;color:var(--darkblue);margin-bottom:8px;}
+.cert-pending .cp-sub{font-size:14px;color:var(--grey);line-height:1.7;margin-bottom:16px;}
+.cp-spin{
+  display:inline-block;width:24px;height:24px;border-radius:50%;
+  border:3px solid #E7E1D3;border-top-color:var(--gold);
+  animation:cp-spin .8s linear infinite;
+}
+@keyframes cp-spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){.cp-spin{animation:none;}}
+@media print{ .cert-pending{display:none !important;} }
 
 /* ============================================================
    16. TABLES
@@ -727,6 +747,10 @@ body.modal-open{overflow:hidden;}
 .certdes-panel{display:flex;flex-direction:column;gap:14px;}
 .certdes-section{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-sm);}
 .certdes-section h4{margin:0 0 10px;font-size:14px;color:var(--navy);}
+.certdes-count{
+  display:inline-block;min-width:17px;padding:0 5px;margin-left:5px;border-radius:9px;
+  background:var(--darkblue);color:#fff;font-size:11px;font-weight:700;line-height:17px;text-align:center;
+}
 .certdes-list{display:flex;flex-direction:column;gap:6px;}
 .certdes-list button{text-align:left;padding:7px 10px;border:1px solid var(--line-cool);border-radius:7px;background:#fff;font-size:13px;cursor:pointer;transition:.16s;font-family:inherit;}
 .certdes-list button:hover{background:var(--lightblue);border-color:#BCC9DA;}
@@ -1068,7 +1092,8 @@ const ICON = {
   check:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
   eye:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>',
-  print:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>'
+  print:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>',
+  warn:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
 };
 
 function emblem(size, gold, light){
@@ -1096,8 +1121,25 @@ const DRAFT_PREFIX= 'dti_draft_';
 const INSTITUTE   = 'ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ, ಬೆಂಗಳೂರು ನಗರ';
 const INSTITUTE_EN= 'District Training Institute, Bengaluru City';
 /* Every ಭಾಗ-1 question is answered with exactly these four options, in this
-   order. They are fixed by the institute, so they are not administered. */
-const PART1_RATINGS = ['Excellent', 'Good', 'Average', 'Unsatisfied'];
+   order. They are fixed by the institute, so they are not administered.
+   The stored value is the Kannada label itself, exactly like the ratings
+   collected before this update. */
+const PART1_RATINGS = ['ಅತ್ಯುತ್ತಮ', 'ಉತ್ತಮ', 'ಸಾಧಾರಣ', 'ಅತೃಪ್ತಿಕರ'];
+/* Some submissions were saved while the form briefly offered the English
+   wording. They are mapped back on display, so no answer is lost and the
+   administrator always reads the Kannada label. */
+const PART1_RATING_ALIASES = {
+  'Excellent':   'ಅತ್ಯುತ್ತಮ',
+  'Good':        'ಉತ್ತಮ',
+  'Average':     'ಸಾಧಾರಣ',
+  'Unsatisfied': 'ಅತೃಪ್ತಿಕರ'
+};
+function part1RatingLabel(value){
+  const v = str(value).trim();
+  if(!v) return '';
+  if(PART1_RATINGS.indexOf(v) !== -1) return v;
+  return PART1_RATING_ALIASES[v] || v;   /* older Kannada answers show as saved */
+}
 const WEEKDAYS_KN = ['ಸೋಮವಾರ','ಮಂಗಳವಾರ','ಬುಧವಾರ','ಗುರುವಾರ','ಶುಕ್ರವಾರ','ಶನಿವಾರ','ಭಾನುವಾರ'];
 
 /* Feedback question formats for ಭಾಗ-2. `choice` = pick one of the configured
@@ -2018,9 +2060,21 @@ function loadPortalSettings(){
   });
 }
 
+/* Read the administrator's saved design — the single source of truth for
+   every certificate — and make its background usable. The returned promise
+   always resolves, but `certDesState.bgStatus` records what happened so the
+   student view can say "loading" or "unavailable" instead of inventing a
+   certificate. */
 function loadCertificateDesign(){
+  certDesState.bgStatus = 'loading';
+  certDesState.bgError = '';
   return sb.from('certificate_design').select('*').maybeSingle().then(unwrap).then(function(row){
-    if(!row) return null;
+    if(!row){
+      /* No row at all: nothing has ever been saved, so the built-in layout
+         is still the honest answer. */
+      certDesState.bgStatus = 'empty';
+      return null;
+    }
     const design = sanitizeCertDesign({
       useCustom: !!row.use_custom,
       aspect: Number(row.aspect) || 1.414,
@@ -2031,20 +2085,60 @@ function loadCertificateDesign(){
     const path = row.background_path || '';
     if(!path){
       certDesState.bg = '';
+      certDesState.bgStatus = certDesignActive(design) ? 'missing' : 'empty';
       try{ localStorage.removeItem(CERT_BG_PATH_KEY); }catch(e){}
       clearCertBg();
       return null;
     }
     let cached = '';
+    let cachedFor = '';
     try{
-      cached = localStorage.getItem(CERT_BG_PATH_KEY) === path ? loadCertBg() : '';
-    }catch(e){ cached = ''; }
-    if(cached){ certDesState.bg = cached; return cached; }
+      cachedFor = localStorage.getItem(CERT_BG_PATH_KEY) || '';
+      cached = cachedFor === path ? loadCertBg() : '';
+    }catch(e){ cached = ''; cachedFor = ''; }
+    if(cached){ certDesState.bg = cached; certDesState.bgStatus = 'ready'; return cached; }
+    /* a cached image that belongs to another background is never used: the
+       saved design must appear over the file the administrator saved */
+    if(cachedFor && cachedFor !== path){
+      clearCertBg();
+      try{ localStorage.removeItem(CERT_BG_PATH_KEY); }catch(e){}
+    }
     return downloadCertBackground(path);
   }).catch(function(err){
     console.warn('[data] certificate design read failed', err && (err.message || err.code));
+    certDesState.bgStatus = 'error';
+    certDesState.bgError = (err && err.message) || 'design-read-failed';
     return null;
   });
+}
+
+/* A saved design exists as soon as the administrator has placed any field.
+   It is the authority for rendering — the old `use_custom` switch is only
+   kept in the database for compatibility and can no longer downgrade the
+   student certificate to the built-in layout. */
+function certDesignActive(design){
+  return !!(design && Array.isArray(design.fields) && design.fields.length > 0);
+}
+
+/* Load the design/background once, re-render when it arrives. Used by the
+   certificate stage and by the retry button. */
+function ensureCertAssets(){
+  if(certDesState.bgFetching) return certDesState.bgFetching;
+  if(!sb || !AUTH.session) return Promise.resolve(false);
+  certDesState.bgStatus = 'loading';
+  certDesState.bgAutoTries = 0;
+  const p = loadCertificateDesign().then(function(){
+    certDesState.bgFetching = null;
+    render();
+    return !!certDesState.bg;
+  }).catch(function(){
+    certDesState.bgFetching = null;
+    certDesState.bgStatus = 'error';
+    render();
+    return false;
+  });
+  certDesState.bgFetching = p;
+  return p;
 }
 
 function blobToDataUrl(blob){
@@ -2069,16 +2163,22 @@ function dataUrlToBlob(dataUrl){
 }
 
 function downloadCertBackground(path){
+  certDesState.bgStatus = 'loading';
   return sb.storage.from(CERT_BUCKET).download(path).then(function(res){
     if(res && res.error) throw res.error;
+    if(!res || !res.data) throw new Error('background-empty');
     return blobToDataUrl(res.data);
   }).then(function(dataUrl){
     certDesState.bg = dataUrl;
+    certDesState.bgStatus = 'ready';
+    certDesState.bgError = '';
     saveCertBg(dataUrl);
     try{ localStorage.setItem(CERT_BG_PATH_KEY, path); }catch(e){}
     return dataUrl;
   }).catch(function(err){
     console.warn('[data] certificate background download failed', err && (err.message || err.code));
+    certDesState.bgStatus = 'error';
+    certDesState.bgError = (err && err.message) || 'background-download-failed';
     return null;
   });
 }
@@ -2868,7 +2968,7 @@ function stageFeedback(t){
 
 /* one ಭಾಗ-1 block exactly as the administrator laid it out */
 function part1ParticipantCard(b, i, d){
-  const selected = (d.ratings || {})[b.id] || '';
+  const selected = part1RatingLabel((d.ratings || {})[b.id] || '');
   const pills = PART1_RATINGS.map(function(r){
     return '<label class="pill"><input type="radio" name="p1rate_' + esc(b.id) + '" value="' + esc(r) + '"' +
       ' data-p1rate="' + esc(b.id) + '"' + (selected === r ? ' checked' : '') +
@@ -3035,9 +3135,16 @@ function stageCertificate(t, sub){
   const cert = DB.certificates.find(c => c.submissionId === sub.id);
   const certNo = cert ? cert.number : '—';
 
+  /* the download button only appears when the administrator's design and its
+     background are actually on screen — no printing a substitute */
+  const ready = certificateRenderMode() !== 'pending';
+  const printBtn = ready
+    ? '<button class="btn btn-primary" data-action="print-cert">' + ICON.print + '<span>ಪ್ರಮಾಣಪತ್ರ ಡೌನ್‌ಲೋಡ್ / ಮುದ್ರಿಸಿ</span></button>'
+    : '<button class="btn btn-ghost" data-action="cert-retry">↻ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ / Retry</button>';
+
   return '<div class="cert-wrap">' + certificateHTML(t, sub, certNo) + '</div>' +
     '<div class="cert-toolbar no-print">' +
-      '<button class="btn btn-primary" data-action="print-cert">' + ICON.print + '<span>ಪ್ರಮಾಣಪತ್ರ ಡೌನ್‌ಲೋಡ್ / ಮುದ್ರಿಸಿ</span></button>' +
+      printBtn +
       '<button class="btn btn-ghost" data-action="goto-stage" data-n="4">← ಫಲಿತಾಂಶ</button>' +
       '<button class="btn btn-ghost" data-action="student-nav" data-to="dashboard">ಡ್ಯಾಶ್‌ಬೋರ್ಡ್</button>' +
     '</div>';
@@ -3059,11 +3166,68 @@ function designationFor(sub){
   return '';
 }
 
+/* What the student sees while the saved design or its background is not
+   usable. Never a substitute certificate: the administrator's design is the
+   only certificate, so a missing piece is reported instead of faked. */
+function certificateAssetsCard(mode){
+  const loading = mode === 'loading' || mode === 'idle';
+  /* a load that has not been attempted yet is started here; a failure is not
+     retried on its own, so a blocked bucket cannot spin forever */
+  if(loading && !certDesState.bgFetching && (certDesState.bgAutoTries || 0) < 2 &&
+     certDesState.bgStatus !== 'error' && AUTH.session && sb){
+    certDesState.bgAutoTries = (certDesState.bgAutoTries || 0) + 1;
+    setTimeout(function(){ ensureCertAssets(); }, 0);
+  }
+  const title = loading ? 'ಪ್ರಮಾಣಪತ್ರ ಲೋಡ್ ಆಗುತ್ತಿದೆ…'
+    : (mode === 'missing'
+        ? 'ಪ್ರಮಾಣಪತ್ರದ ಹಿನ್ನೆಲೆ ಚಿತ್ರ ಲಭ್ಯವಿಲ್ಲ'
+        : 'ಪ್ರಮಾಣಪತ್ರ ವಿನ್ಯಾಸ ಲೋಡ್ ಆಗಲಿಲ್ಲ');
+  const subline = loading
+    ? 'Loading the certificate design saved by the administrator.'
+    : (mode === 'missing'
+        ? 'The certificate design is saved, but its background image is not. Please contact the institute office — your result is safe.'
+        : 'The certificate design could not be read from the server. Check the connection and try again — your result is safe.');
+  return '<div class="cert-pending' + (loading ? ' is-loading' : ' is-error') + '" role="status">' +
+    '<div class="cp-icon">' + (loading ? '<span class="cp-spin"></span>' : ICON.warn) + '</div>' +
+    '<div class="cp-title">' + esc(title) + '</div>' +
+    '<div class="cp-sub">' + esc(subline) + '</div>' +
+    (loading ? '' : '<button class="btn btn-ghost btn-sm no-print" data-action="cert-retry">ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ / Retry</button>') +
+  '</div>';
+}
+
+/* One answer to "what may be drawn right now":
+     design  — the administrator's saved design and its background are ready
+     pending — a design exists (or is still being read) but cannot be drawn
+     default — nothing has ever been saved, so the built-in layout applies   */
+function certificateRenderMode(){
+  const cfg = getActiveCertDesign();
+  if(certDesignActive(cfg.design)) return cfg.bg ? 'design' : 'pending';
+  const reading = (certDesState.bgStatus === 'idle' || certDesState.bgStatus === 'loading' ||
+                   !!certDesState.bgFetching);
+  if(!certDesState.design && reading) return 'pending';
+  return 'default';
+}
+
+/* Which pending card to show: a missing background is permanent until the
+   administrator uploads one, an error can be retried by hand. */
+function certificatePendingMode(){
+  const st = certDesState.bgStatus;
+  if(st === 'missing') return 'missing';
+  if(st === 'error') return 'error';
+  if(st === 'idle' || st === 'loading' || certDesState.bgFetching) return 'loading';
+  return 'error';
+}
+
 function certificateHTML(t, sub, certNo){
   const cfg = getActiveCertDesign();
-  if(cfg.design && cfg.design.useCustom && cfg.bg){
-    return renderCustomCertificate(t, sub, certNo, cfg.design, cfg.bg);
-  }
+  const mode = certificateRenderMode();
+  if(mode === 'design') return renderCustomCertificate(t, sub, certNo, cfg.design, cfg.bg);
+  if(mode === 'pending') return certificateAssetsCard(certificatePendingMode());
+  return defaultCertificateHTML(t, sub, certNo);
+}
+
+/* The built-in layout, used only while no design has been saved at all. */
+function defaultCertificateHTML(t, sub, certNo){
   const name = sub.details && sub.details.name ? sub.details.name : sub.userName;
   const desig = designationFor(sub);
   const kgid = (sub.details && sub.details.kgid) || sub.kgid || '';
@@ -4169,7 +4333,14 @@ const CERT_FONTS = {
   mono:  { css:"ui-monospace,Menlo,Consolas,monospace", label:'Mono' }
 };
 
-let certDesState = { design:null, bg:'', selectedId:null, dragging:null };
+/* `bgStatus` tells the rest of the app whether the saved background is
+   actually usable: idle (not asked for yet), loading, ready, missing (the
+   design has no background path) or error (the download failed). The student
+   certificate never guesses — it shows this state instead of a fake one. */
+let certDesState = {
+  design:null, bg:'', selectedId:null, dragging:null,
+  bgStatus:'idle', bgError:'', bgFetching:null, bgAutoTries:0
+};
 
 function defaultCertDesign(){
   return { useCustom:false, aspect:1.414, fields:[] };
@@ -4179,18 +4350,30 @@ function defaultCertDesign(){
    still carries Training Topic / Marks / Email / Training Date fields is
    mapped onto the new labels (Training Date -> Training Start Date) and the
    rest are dropped, so the designer never shows an outdated label again.
-   Static text placed by hand is left untouched: it carries no data. */
+   Static text placed by hand is left untouched: it carries no data.
+
+   A label type may appear any number of times — the administrator places
+   "Student Name" as often as the scanned certificate needs it. Every box is
+   its own element with its own id, so nothing here may collapse duplicates;
+   only a genuinely missing or repeated *id* is repaired. */
 function normalizeCertFields(fields){
-  const seen = {};
   const out = [];
+  const usedIds = {};
   (Array.isArray(fields) ? fields : []).forEach(function(f){
-    if(!f || !f.id) return;
-    if(f.type !== 'auto'){ out.push(f); return; }
-    const key = CERT_KEY_ALIASES[f.key];
-    if(!key) return;                       /* outdated automatic label */
-    if(seen[key]) return;                  /* same label twice */
-    seen[key] = true;
-    out.push(Object.assign({}, f, { key: key, type:'auto' }));
+    if(!f || typeof f !== 'object') return;
+    let copy;
+    if(f.type !== 'auto'){
+      copy = Object.assign({}, f, { type:'static', text:String(f.text || '') });
+    }else{
+      const key = CERT_KEY_ALIASES[f.key];
+      if(!key) return;                     /* outdated automatic label */
+      copy = Object.assign({}, f, { key:key, type:'auto' });
+    }
+    let id = str(copy.id).trim();
+    if(!id || usedIds[id]) id = uid('cd');
+    usedIds[id] = true;
+    copy.id = id;
+    out.push(copy);
   });
   return out;
 }
@@ -4418,7 +4601,7 @@ function adminCertDesigner(){
   '<div class="certdes-layout">' +
     '<div class="certdes-canvas-wrap">' +
       '<div class="row" style="justify-content:space-between;margin-bottom:10px;">' +
-        '<span class="certdes-tag' + (d.useCustom ? '' : ' static') + '">' + (d.useCustom ? 'CUSTOM ACTIVE' : 'DEFAULT ACTIVE') + '</span>' +
+        '<span class="certdes-tag' + (d.fields.length ? '' : ' static') + '">' + (d.fields.length ? 'SAVED DESIGN ACTIVE' : 'NO SAVED DESIGN — BUILT-IN LAYOUT') + '</span>' +
         '<span class="certdes-info">LIVE PREVIEW · drag text to move · gold dot = width · gold bar = height</span>' +
       '</div>' +
       '<div class="certdes-canvas" id="certdesCanvas" style="' + aspectStyle + '">' +
@@ -4456,9 +4639,11 @@ function adminCertDesigner(){
       '<div class="certdes-section">' +
         '<h4>2. Add Automatic Field</h4>' +
         '<div class="certdes-list">' +
-          autoFields.map(f =>
-            '<button type="button" data-action="certdes-add-auto" data-key="' + f.key + '">+ ' + esc(f.label) + '</button>'
-          ).join('') +
+          autoFields.map(function(f){
+            const used = d.fields.filter(function(x){ return x.type === 'auto' && x.key === f.key; }).length;
+            return '<button type="button" data-action="certdes-add-auto" data-key="' + f.key + '">+ ' +
+              esc(f.label) + (used ? ' <span class="certdes-count">' + used + '</span>' : '') + '</button>';
+          }).join('') +
         '</div>' +
       '</div>' +
 
@@ -4475,10 +4660,12 @@ function adminCertDesigner(){
 
       '<div class="certdes-section">' +
         '<h4>5. Save &amp; Apply</h4>' +
-        '<label class="row" style="gap:8px;margin-bottom:10px;">' +
-          '<input type="checkbox" id="certUseCustom"' + (d.useCustom ? ' checked' : '') + '>' +
-          '<span class="small">Use custom certificate for students</span>' +
-        '</label>' +
+        '<p class="certdes-info" style="margin-bottom:10px;">The saved design is the only certificate students see, and the canvas above is exactly what they get. &ldquo;Reset to Default&rdquo; removes it and brings back the built-in layout.</p>' +
+        (d.fields.length ? '' :
+          '<p class="certdes-info" style="color:var(--red);margin-bottom:10px;">No field has been placed yet.</p>') +
+        (d.fields.length && !bg
+          ? '<p class="certdes-info" style="color:var(--red);margin-bottom:10px;">No background image: students will see a clear &ldquo;background missing&rdquo; message instead of a certificate until one is uploaded.</p>'
+          : '') +
         '<div class="row">' +
           '<button type="button" class="btn btn-primary btn-sm" data-action="certdes-save">Save Design</button>' +
           '<button type="button" class="btn btn-ghost btn-sm" data-action="certdes-reset">Reset to Default</button>' +
@@ -4537,13 +4724,6 @@ function bindCertDesInputs(){
       updateEditorField(field);
     });
   });
-  const chk = document.getElementById('certUseCustom');
-  if(chk && !chk.__cdBound){
-    chk.__cdBound = true;
-    chk.addEventListener('change', function(){
-      if(certDesState.design) certDesState.design.useCustom = chk.checked;
-    });
-  }
 }
 
 /* ---- Persist the designer (this browser only) ---- */
@@ -4596,7 +4776,7 @@ function persistCertDesign(){
     try{ previousPath = localStorage.getItem(CERT_BG_PATH_KEY) || ''; }catch(e){ previousPath = ''; }
 
     const patch = {
-      use_custom: !!design.useCustom,
+      use_custom: certDesignActive(design),
       aspect: Number(design.aspect) || 1.414,
       fields: design.fields || []
     };
@@ -4611,7 +4791,15 @@ function persistCertDesign(){
           if(previousPath && previousPath !== newPath) deleteCertBackground(previousPath);
         }
         saveCertDesign(design);
-        toast('Certificate design saved.', 'success');
+        certDesState.bgStatus = certDesignActive(design)
+          ? (certDesState.bg ? 'ready' : 'missing')
+          : 'empty';
+        certDesState.bgError = '';
+        if(design.fields.length && !certDesState.bg){
+          toast('Design saved. Upload a background image so students can see the certificate.', 'info');
+        }else{
+          toast('Certificate design saved — students will now get this design.', 'success');
+        }
         return true;
       });
   }).catch(function(err){
@@ -4627,6 +4815,8 @@ function persistCertDesign(){
 function resetCertDesign(){
   certDesState.design = defaultCertDesign();
   certDesState.bg = '';
+  certDesState.bgStatus = 'empty';
+  certDesState.bgError = '';
   certDesState.selectedId = null;
   saveCertDesign(certDesState.design);
   clearCertBg();
@@ -4656,7 +4846,8 @@ function resetCertDesign(){
 /* Removing just the background keeps the field layout. */
 function removeCertBackground(){
   certDesState.bg = '';
-  certDesState.design.useCustom = false;
+  certDesState.bgStatus = 'missing';
+  certDesState.design.useCustom = certDesignActive(certDesState.design);
   saveCertDesign(certDesState.design);
   clearCertBg();
 
@@ -4666,7 +4857,7 @@ function removeCertBackground(){
   if(!authIsAdmin()){ render(); toast('Background removed.','success'); return Promise.resolve(true); }
 
   return sb.from('certificate_design')
-    .update({ background_path:'', use_custom:false })
+    .update({ background_path:'', use_custom: certDesignActive(certDesState.design) })
     .eq('id', true)
     .then(function(res){
       if(res.error) throw res.error;
@@ -4703,7 +4894,7 @@ function renderCustomCertificate(t, sub, certNo, design, bg){
   const aspect = Number(design.aspect) || 1.414;
   return '<div class="cert cert-custom" id="cert" style="--cert-aspect:' + aspect + ';">' +
     '<div class="cert-custom-stage" style="aspect-ratio:' + aspect + ';container-type:size;">' +
-      '<img src="' + bg + '" alt="">' +
+      '<img src="' + esc(bg) + '" alt="">' +
       fieldsHtml +
     '</div>' +
   '</div>';
@@ -5122,7 +5313,7 @@ function viewSubmissionModal(id){
     const blocks = part1Active(t);
     if(blocks.length){
       return blocks.map(function(b, i){
-        const r = (fb.ratings || {})[b.id] || (fb.ratings || {})[String(i)] || '';
+        const r = part1RatingLabel((fb.ratings || {})[b.id] || (fb.ratings || {})[String(i)] || '');
         const meta = [
           b.day,
           displayDate(b.date),
@@ -5140,7 +5331,7 @@ function viewSubmissionModal(id){
     const legacy = (t.feedback && t.feedback.sessions) || [];
     if(legacy.length){
       return legacy.map(function(sess, i){
-        const r = (fb.ratings || {})[String(i)] || '';
+        const r = part1RatingLabel((fb.ratings || {})[String(i)] || '');
         return '<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);">' +
           '<div class="small strong" style="color:var(--darkblue);">' + esc(sess.heading || sess.topic || ('ಅಧಿವೇಶನ ' + (i + 1))) + '</div>' +
           '<div class="small">' + esc(r || '—') + '</div>' +
@@ -5385,9 +5576,23 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'submit-assessment': submitAssessment(); break;
+    case 'cert-retry': {
+      certDesState.bgFetching = null;
+      certDesState.bgAutoTries = 0;
+      ensureCertAssets().then(function(ok){
+        toast(ok ? 'ಪ್ರಮಾಣಪತ್ರ ಲೋಡ್ ಆಗಿದೆ.' : 'ಪ್ರಮಾಣಪತ್ರದ ವಿನ್ಯಾಸ ಲೋಡ್ ಆಗಲಿಲ್ಲ.', ok ? 'success' : 'error');
+      });
+      break;
+    }
     case 'print-cert': {
       const cfg = getActiveCertDesign();
-      const aspect = (cfg.design && cfg.design.useCustom && cfg.design.aspect) ? cfg.design.aspect : 1.414;
+      /* never print anything but the administrator's saved certificate */
+      if(certDesignActive(cfg.design) && !cfg.bg){
+        toast('ಪ್ರಮಾಣಪತ್ರದ ವಿನ್ಯಾಸ ಇನ್ನೂ ಲೋಡ್ ಆಗಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.', 'error');
+        ensureCertAssets();
+        break;
+      }
+      const aspect = (cfg.design && Number(cfg.design.aspect)) ? cfg.design.aspect : 1.414;
       setPrintPageOrientation(aspect);
       document.body.classList.add('print-mode');
       window.print();
@@ -5803,11 +6008,14 @@ document.addEventListener('click', function(e){
     case 'certdes-add-auto': {
       if(!certDesState.design) break;
       const key = el.getAttribute('data-key');
+      const same = certDesState.design.fields.filter(function(f){ return f.type === 'auto' && f.key === key; }).length;
       certDesState.design.fields.push({
         id: uid('cd'),
         type: 'auto',
         key: key,
-        x: 30, y: 40, w: 40, h: 0,
+        /* a second box of the same label lands a little lower, so it is
+           visible and draggable straight away instead of hidden underneath */
+        x: 30, y: Math.min(70, 30 + same * 6), w: 40, h: 0,
         fontSize: 3,
         fontFamily: 'kn',
         color: '#14243A',
@@ -5823,11 +6031,12 @@ document.addEventListener('click', function(e){
       const inp = document.getElementById('certStaticInput');
       const txt = inp ? String(inp.value || '').trim() : '';
       if(!txt){ toast('Type some text first.','error'); break; }
+      const sameStatic = certDesState.design.fields.filter(function(f){ return f.type === 'static'; }).length;
       certDesState.design.fields.push({
         id: uid('cd'),
         type: 'static',
         text: txt,
-        x: 20, y: 55, w: 60, h: 0,
+        x: 20, y: Math.min(80, 35 + sameStatic * 5), w: 60, h: 0,
         fontSize: 2.6,
         fontFamily: 'kn',
         color: '#14243A',
@@ -5848,8 +6057,8 @@ document.addEventListener('click', function(e){
     }
     case 'certdes-save': {
       if(!certDesState.design) break;
-      const chk = document.getElementById('certUseCustom');
-      if(chk) certDesState.design.useCustom = chk.checked;
+      /* the design is active exactly when it has fields — no separate switch */
+      certDesState.design.useCustom = certDesignActive(certDesState.design);
       persistCertDesign();
       break;
     }
@@ -5955,6 +6164,8 @@ document.addEventListener('change', function(e){
          uploads it to the private bucket and writes certificate_design, so a
          closed tab never leaves a half-saved design behind. */
       certDesState.bg = dataUrl;
+      certDesState.bgStatus = 'ready';
+      certDesState.bgError = '';
       if(!certDesState.design) certDesState.design = defaultCertDesign();
       render();
       toast('Image ready — press "Save & Apply" to upload it.', 'info');

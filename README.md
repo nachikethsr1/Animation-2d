@@ -201,13 +201,16 @@ restored and permanently removed, and the layout reflows automatically.
 
 The participant sees each block as a styled card (day, date, session range,
 subject, question, lecturer) and rates that day with exactly four options, in
-this order and wording: **Excellent / Good / Average / Unsatisfied**. The four
-options are fixed institute-wide (`PART1_RATINGS`), so they are shown read-only
-in the administrator's block editor and are not administered per question. The
-chosen value is stored in `submissions.feedback.ratings[blockId]` (the map shape
+this order: **ಅತ್ಯುತ್ತಮ / ಉತ್ತಮ / ಸಾಧಾರಣ / ಅತೃಪ್ತಿಕರ**. The four options are fixed
+institute-wide (`PART1_RATINGS`), so they are shown read-only in the
+administrator's block editor and are not administered per question. The chosen
+Kannada value is stored in `submissions.feedback.ratings[blockId]` (the map shape
 already used by earlier submissions, so nothing had to change in the database)
-and the administrator sees it in the feedback detail view. Older rows keep their
-Kannada values and still display.
+and the administrator sees it in the feedback detail view. Rows saved while the
+form briefly offered English wording (`Excellent`, `Good`, `Average`,
+`Unsatisfied`) are displayed through `PART1_RATING_ALIASES`, so the office reads
+the Kannada label without the stored answer being rewritten; Kannada answers
+collected before this update display unchanged.
 
 **ಭಾಗ-2 — ತರಬೇತಿ ಉಪಯುಕ್ತತೆ ಕುರಿತು ಹಿಮ್ಮಾಹಿತಿ.** The eight institute questions
 are preloaded with exactly the wording and options supplied. Each question has a
@@ -260,6 +263,26 @@ text (headings such as "This is to certify that") is kept — it carries no data
 The canvas previews either the sample values or a real participant and training,
 both switchable from the panel, which makes checking label positions
 straightforward.
+
+**A label type may be placed any number of times.** `+ Student Name` adds a new
+box on every click; each box is an element of its own with a unique id
+(`cd_…`), so three Student Name boxes can sit on three lines of the scan, each
+with its own position, width, height and font size, selected, dragged, resized
+and deleted independently. Nothing identifies a box by its label type, and
+saving/reopening keeps every instance exactly as placed — the only ids that are
+ever regenerated are genuinely missing or duplicated ones.
+
+**The saved design is the single source of truth for the certificate.** The old
+"use custom certificate for students" switch is gone: whenever the saved design
+has fields, every certificate — the designer canvas, the student's on-screen
+certificate and the printed/downloaded page — is drawn by `certFieldStyle()`
+from that design over the uploaded background, with the participant's real name,
+designation and KGID and the training's real name and dates. The built-in layout
+is only used while nothing has been saved at all. If the design exists but its
+background cannot be loaded, the student sees a clear *loading* or
+*background missing / could not be loaded* card with a retry button instead of a
+substitute certificate, and the download button is not offered until the real
+certificate is on screen.
 
 `trainings.start_date`, `end_date`, `feedback_version`, `feedback_part1` and
 `feedback_part2` are added by
