@@ -24,7 +24,7 @@ private file storage.
 
 | table | holds |
 | --- | --- |
-| `profiles` | one row per account: name, KGID, designation, `role` (admin/student), `status` (pending/approved/rejected/disabled) |
+| `profiles` | one row per account: name, KGID, designation, `role` (admin/student), `status` (`approved` on sign-up, `disabled` when an admin revokes access) |
 | `trainings` | a training programme, its feedback questions and publish/archive flags |
 | `training_questions` | the assessment paper for a training (no answer key) |
 | `submissions` | one marked paper per student per training |
@@ -131,9 +131,19 @@ listed test users can sign in; publish it when the real users arrive.
 
 ## Accounts
 
-Nobody can sign themselves in: a first Google sign-in creates a `profiles` row with
-`status = 'pending'`, the student fills in name / KGID / designation / department,
-and an administrator approves the account before any training is visible.
+There is no approval step. A Google sign-in creates a `profiles` row with
+`status = 'approved'` (the `on_auth_user_created` trigger in
+`20261127083858_auto_approve_new_signups.sql`), the student fills in name / KGID /
+designation / department on the first visit, and the portal opens immediately.
+
+The administrator keeps a kill switch instead: **Admin → Student accounts** can
+disable an account (`status = 'disabled'`) and re-enable it. A disabled account is
+blocked at the gate and by every policy that calls `is_approved()`. Row level
+security still scopes each student to their own submission and certificate rows.
+
+Restoring the old behaviour is a one-line change to the trigger
+(`'approved'` → `'pending'` in `handle_new_user`); the gate in the page still
+handles `status = 'rejected'` / `'disabled'`.
 
 ## Applying the migrations
 
