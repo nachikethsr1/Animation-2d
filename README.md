@@ -200,8 +200,14 @@ and the switch is not offered for them. Blocks can be added, deleted (soft),
 restored and permanently removed, and the layout reflows automatically.
 
 The participant sees each block as a styled card (day, date, session range,
-subject, question, lecturer) with the four approval levels
-(ಅತ್ಯುತ್ತಮ / ಉತ್ತಮ / ತೃಪ್ತಿಕರ / ಸಾಧಾರಣ) to rate it.
+subject, question, lecturer) and rates that day with exactly four options, in
+this order and wording: **Excellent / Good / Average / Unsatisfied**. The four
+options are fixed institute-wide (`PART1_RATINGS`), so they are shown read-only
+in the administrator's block editor and are not administered per question. The
+chosen value is stored in `submissions.feedback.ratings[blockId]` (the map shape
+already used by earlier submissions, so nothing had to change in the database)
+and the administrator sees it in the feedback detail view. Older rows keep their
+Kannada values and still display.
 
 **ಭಾಗ-2 — ತರಬೇತಿ ಉಪಯುಕ್ತತೆ ಕುರಿತು ಹಿಮ್ಮಾಹಿತಿ.** The eight institute questions
 are preloaded with exactly the wording and options supplied. Each question has a
@@ -222,8 +228,21 @@ active question (and every ಭಾಗ-1 block) is required before the MCQ stage o
 
 ## Certificate designer
 
-The manual designer (upload a PNG/JPG background, drag labels, set size,
-colour and alignment, save) is unchanged. The automatic labels are now exactly:
+The manual designer (upload a PNG/JPG background, drag labels, set position,
+width, height, font size, colour and alignment, save) is unchanged. Every label
+has its **own** width and **own** height, plus its own font size, so changing one
+label never moves or resizes another. Height is a percentage of the certificate
+height and is optional: leave it empty for the automatic height, or type a value
+/ drag the gold bar under the label. A fixed height crops text that overflows,
+in the designer and on the issued certificate alike. All labels are **always
+bold** — the weight option was removed rather than hidden.
+
+The canvas is a **live preview**: it repaints on every keystroke of position,
+width, height, font size or text, without saving or refreshing, over the
+uploaded background. It starts on realistic sample values (Sample Student /
+Teacher / 123456 / Sample Training with sample dates) and can be switched to any
+real participant and training, in which case the real start and end dates come
+from `trainings.start_date` / `end_date`. The automatic labels are exactly:
 
 1. Student Name — participant profile / submission
 2. Designation — participant profile / submission
@@ -238,8 +257,9 @@ A saved design is sanitised when it is read: `Training Date` becomes *Training
 Start Date*, `Training Title` becomes *Training Name*, and the remaining
 outdated labels are dropped, so an old design keeps working. Hand-placed static
 text (headings such as "This is to certify that") is kept — it carries no data.
-The canvas previews a real participant and training, both switchable from the
-panel, which makes checking label positions straightforward.
+The canvas previews either the sample values or a real participant and training,
+both switchable from the panel, which makes checking label positions
+straightforward.
 
 `trainings.start_date`, `end_date`, `feedback_version`, `feedback_part1` and
 `feedback_part2` are added by

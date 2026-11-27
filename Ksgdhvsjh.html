@@ -709,10 +709,21 @@ body.modal-open{overflow:hidden;}
 .certdes-canvas{position:relative;width:100%;background:#fff;border:1px dashed #C9D2E0;border-radius:6px;overflow:hidden;user-select:none;container-type:size;touch-action:none;}
 .certdes-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;display:block;}
 .certdes-bg.empty{background:repeating-linear-gradient(45deg,#F7F5EF 0 10px,#EFEBE0 10px 20px);}
-.certdes-field{position:absolute;box-sizing:border-box;cursor:move;padding:1px 3px;line-height:1.2;border:1px dashed transparent;white-space:pre-wrap;word-break:break-word;overflow:visible;touch-action:none;font-weight:500;}
+.certdes-field{position:absolute;box-sizing:border-box;cursor:move;padding:1px 3px;line-height:1.2;border:1px dashed transparent;white-space:pre-wrap;word-break:break-word;overflow:visible;touch-action:none;font-weight:700;}
 .certdes-field:hover{border-color:rgba(29,53,87,.35);}
 .certdes-field.selected{border-color:var(--darkblue);background:rgba(234,240,247,.35);}
-.certdes-field .cd-handle{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:var(--gold);border:2px solid #fff;border-radius:50%;cursor:nwse-resize;box-shadow:0 1px 3px rgba(0,0,0,.25);touch-action:none;}
+.certdes-field .cd-handle{
+  position:absolute;right:1px;bottom:1px;width:12px;height:12px;background:var(--gold);
+  border:2px solid #fff;border-radius:50%;cursor:ew-resize;box-shadow:0 1px 3px rgba(0,0,0,.25);touch-action:none;
+}
+/* separate grab bar for the label height (bottom edge) */
+.certdes-field .cd-handle-h{
+  position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  width:26px;height:7px;background:var(--gold);border:1px solid #fff;border-radius:4px;
+  cursor:ns-resize;box-shadow:0 1px 3px rgba(0,0,0,.25);touch-action:none;
+  opacity:.55;transition:opacity .15s;
+}
+.certdes-field:hover .cd-handle-h,.certdes-field.selected .cd-handle-h{opacity:1;}
 .certdes-panel{display:flex;flex-direction:column;gap:14px;}
 .certdes-section{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-sm);}
 .certdes-section h4{margin:0 0 10px;font-size:14px;color:var(--navy);}
@@ -742,7 +753,7 @@ body.modal-open{overflow:hidden;}
 /* the uploaded scan is the page: fill it exactly, never letterbox, never
    distort. `cover` on a box with the image's own aspect is pixel-exact. */
 .cert-custom-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
-.cert-custom-field{position:absolute;box-sizing:border-box;line-height:1.2;white-space:pre-wrap;word-break:break-word;pointer-events:none;font-weight:500;}
+.cert-custom-field{position:absolute;box-sizing:border-box;line-height:1.2;white-space:pre-wrap;word-break:break-word;pointer-events:none;font-weight:700;}
 @media print{
   body.print-mode .cert.cert-custom{border:none;}
   body.print-mode .cert-custom-stage{border:none;}
@@ -835,6 +846,14 @@ textarea.q-big{min-height:200px;line-height:1.9;}
 }
 .p1-sessions .sess-dash{font-size:15px;color:var(--grey);padding-bottom:10px;}
 .p1-subject input{font-size:16.5px;font-weight:600;padding:13px 15px;}
+.p1-ratings{margin-top:4px;padding:12px 14px;border:1px dashed #D9D2C2;border-radius:12px;background:#FFFDF7;}
+.p1-ratings .p1-lbl{display:block;font-size:13px;font-weight:600;color:var(--darkblue);margin-bottom:8px;}
+.p1-rating-chip{
+  display:inline-block;padding:5px 13px;border-radius:20px;background:#fff;
+  border:1px solid var(--line-cool);font-size:13px;font-weight:600;color:var(--darkblue);
+}
+.p1-rating-chip:nth-child(1){border-color:#BFD9CA;background:#F1F8F4;}
+.p1-rating-chip:nth-child(4){border-color:#EBCFCF;background:#FDF4F4;}
 .p1-block textarea.q-big{min-height:195px;font-size:15.5px;}
 @media (max-width:760px){
   .p1-dayrow{grid-template-columns:1fr;}
@@ -1076,7 +1095,9 @@ const STORE_KEY   = 'dti_bng_v1';
 const DRAFT_PREFIX= 'dti_draft_';
 const INSTITUTE   = 'ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ, ಬೆಂಗಳೂರು ನಗರ';
 const INSTITUTE_EN= 'District Training Institute, Bengaluru City';
-const RATINGS     = ['ಅತ್ಯುತ್ತಮ','ಉತ್ತಮ','ತೃಪ್ತಿಕರ','ಸಾಧಾರಣ'];
+/* Every ಭಾಗ-1 question is answered with exactly these four options, in this
+   order. They are fixed by the institute, so they are not administered. */
+const PART1_RATINGS = ['Excellent', 'Good', 'Average', 'Unsatisfied'];
 const WEEKDAYS_KN = ['ಸೋಮವಾರ','ಮಂಗಳವಾರ','ಬುಧವಾರ','ಗುರುವಾರ','ಶುಕ್ರವಾರ','ಶನಿವಾರ','ಭಾನುವಾರ'];
 
 /* Feedback question formats for ಭಾಗ-2. `choice` = pick one of the configured
@@ -2848,7 +2869,7 @@ function stageFeedback(t){
 /* one ಭಾಗ-1 block exactly as the administrator laid it out */
 function part1ParticipantCard(b, i, d){
   const selected = (d.ratings || {})[b.id] || '';
-  const pills = RATINGS.map(function(r){
+  const pills = PART1_RATINGS.map(function(r){
     return '<label class="pill"><input type="radio" name="p1rate_' + esc(b.id) + '" value="' + esc(r) + '"' +
       ' data-p1rate="' + esc(b.id) + '"' + (selected === r ? ' checked' : '') +
       '><span>' + esc(r) + '</span></label>';
@@ -3476,10 +3497,21 @@ function p1AdminBlock(b, i, activeNo, scope){
       '<div class="field-hint">ಈ ಪ್ರಶ್ನೆ ನೇರವಾಗಿ ಸಂಪಾದನೆಯಾಗುತ್ತದೆ — Edit for All / Edit for One ಇಲ್ಲಿ ಅನ್ವಯವಾಗುವುದಿಲ್ಲ.</div>' +
     '</label>' +
 
-    '<label class="field" style="margin-bottom:0;"><span>ಉಪನ್ಯಾಸಕರು</span>' +
+    '<label class="field"><span>ಉಪನ್ಯಾಸಕರು</span>' +
       '<input type="text" data-p1="' + i + '" data-p1f="lecturer" value="' + esc(b.lecturer) + '"' +
         ' placeholder="ಉಪನ್ಯಾಸಕರ / ಸಂಪನ್ಮೂಲ ವ್ಯಕ್ತಿಯ ಹೆಸರು">' +
     '</label>' +
+
+    /* the rating options are fixed for every ಭಾಗ-1 question */
+    '<div class="p1-ratings" aria-label="ಭಾಗ-1 ರೇಟಿಂಗ್ ಆಯ್ಕೆಗಳು">' +
+      '<span class="p1-lbl">ರೇಟಿಂಗ್ ಆಯ್ಕೆಗಳು (ಸ್ಥಿರ)</span>' +
+      '<div class="rating-row">' +
+        PART1_RATINGS.map(function(r, j){
+          return '<span class="p1-rating-chip">' + (j + 1) + '. ' + esc(r) + '</span>';
+        }).join('') +
+      '</div>' +
+      '<div class="field-hint">ಈ ನಾಲ್ಕು ಆಯ್ಕೆಗಳು ಪ್ರತಿ ಭಾಗ-1 ಪ್ರಶ್ನೆಗೂ ಶಿಬಿರಾರ್ಥಿಗೆ ಕಾಣಿಸುತ್ತವೆ — ಅವು ಸ್ಥಿರವಾಗಿವೆ.</div>' +
+    '</div>' +
   '</div>';
 }
 
@@ -4203,9 +4235,20 @@ function getActiveCertDesign(){
   return { design: loadCertDesign(), bg: loadCertBg() };
 }
 
-/* Which participant / training the designer previews. The administrator can
-   switch both, so label positions are checked against real data. */
-const certPreview = { studentId:'', trainingId:'' };
+/* Which participant / training the designer previews. '__sample__' shows the
+   institute's sample values; any other value previews a real record, so label
+   positions can be checked against actual data. Dates always come from the
+   selected training. */
+const CERT_PREVIEW_SAMPLE = '__sample__';
+const CERT_SAMPLE_VALUES = {
+  studentName:   'Sample Student',
+  designation:   'Teacher',
+  kgid:          '123456',
+  trainingName:  'Sample Training',
+  trainingStart: '01-12-2026',
+  trainingEnd:   '03-12-2026'
+};
+const certPreview = { studentId: CERT_PREVIEW_SAMPLE, trainingId: CERT_PREVIEW_SAMPLE };
 
 function certPreviewStudents(){
   return DB.users.filter(function(u){ return u.role !== 'admin'; });
@@ -4213,18 +4256,20 @@ function certPreviewStudents(){
 
 function certSampleData(){
   const students = certPreviewStudents();
-  const u = students.find(function(x){ return x.id === certPreview.studentId; }) ||
-            students[0] ||
-            DB.users[0] || null;
-  const t = DB.trainings.find(function(x){ return x.id === certPreview.trainingId; }) ||
-            DB.trainings[0] || null;
-  const start = t ? (displayDate(t.startDate) || displayDate(t.date)) : '';
-  const end   = t ? (displayDate(t.endDate) || start) : '';
+  const u = certPreview.studentId === CERT_PREVIEW_SAMPLE
+    ? null
+    : students.find(function(x){ return x.id === certPreview.studentId; }) || null;
+  const t = certPreview.trainingId === CERT_PREVIEW_SAMPLE
+    ? null
+    : DB.trainings.find(function(x){ return x.id === certPreview.trainingId; }) || null;
+
+  const start = t ? (displayDate(t.startDate) || displayDate(t.date)) : CERT_SAMPLE_VALUES.trainingStart;
+  const end   = t ? (displayDate(t.endDate) || start) : CERT_SAMPLE_VALUES.trainingEnd;
   return {
-    studentName:   u ? (u.name || 'Sample Student') : 'Sample Student',
-    designation:   u ? (u.designation || '') : '',
-    kgid:          u ? (u.kgid || '') : '',
-    trainingName:  t ? t.title : 'Sample Training',
+    studentName:   u ? (u.name || '') : CERT_SAMPLE_VALUES.studentName,
+    designation:   u ? (u.designation || '') : CERT_SAMPLE_VALUES.designation,
+    kgid:          u ? (u.kgid || '') : CERT_SAMPLE_VALUES.kgid,
+    trainingName:  t ? t.title : CERT_SAMPLE_VALUES.trainingName,
     trainingStart: start,
     trainingEnd:   end
   };
@@ -4242,6 +4287,8 @@ function autoFieldValue(key, sample){
     default:              return '';
   }
 }
+/* Width, height and font size are independent per label. Every label is
+   always bold — there is deliberately no weight option. */
 function certFieldStyle(field){
   const fontDef = CERT_FONTS[field.fontFamily] || CERT_FONTS.kn;
   const align = ['left','center','right'].indexOf(field.align) !== -1 ? field.align : 'left';
@@ -4250,21 +4297,28 @@ function certFieldStyle(field){
   const w = Math.max(5, Math.min(100, Number(field.w) || 30));
   const x = Math.max(0, Math.min(100, Number(field.x) || 0));
   const y = Math.max(0, Math.min(100, Number(field.y) || 0));
-  return 'left:' + x.toFixed(3) + '%;top:' + y.toFixed(3) + '%;width:' + w.toFixed(3) + '%;' +
-         'font-size:' + fs.toFixed(3) + 'cqh;' +
-         'font-family:' + fontDef.css + ';' +
-         'color:' + color + ';' +
-         'text-align:' + align + ';' +
-         'font-weight:' + (field.bold ? '700' : '500') + ';';
+  const h = Math.max(0, Math.min(100, Number(field.h) || 0));
+  let style = 'left:' + x.toFixed(3) + '%;top:' + y.toFixed(3) + '%;width:' + w.toFixed(3) + '%;' +
+    'font-size:' + fs.toFixed(3) + 'cqh;' +
+    'font-family:' + fontDef.css + ';' +
+    'color:' + color + ';' +
+    'text-align:' + align + ';' +
+    'font-weight:700;';
+  /* 0 / empty keeps the automatic height of the label box */
+  if(h > 0) style += 'height:' + h.toFixed(3) + 'cqh;overflow:hidden;';
+  return style;
 }
 
 /* ---- Editor rendering ---- */
+function editorFieldHandles(){
+  return '<span class="cd-handle" title="ಅಗಲ ಬದಲಿಸಿ (width)"></span>' +
+         '<span class="cd-handle-h" title="ಎತ್ತರ ಬದಲಿಸಿ (height)"></span>';
+}
 function renderEditorField(field, sample){
   const text = field.type === 'auto' ? autoFieldValue(field.key, sample) : (field.text || '');
   const selected = field.id === certDesState.selectedId ? ' selected' : '';
   return '<div class="certdes-field' + selected + '" data-cd-id="' + esc(field.id) + '" style="' + certFieldStyle(field) + '">' +
-    esc(text) +
-    '<span class="cd-handle"></span>' +
+    esc(text) + editorFieldHandles() +
   '</div>';
 }
 function updateEditorField(field){
@@ -4273,7 +4327,7 @@ function updateEditorField(field){
   const sample = certSampleData();
   const text = field.type === 'auto' ? autoFieldValue(field.key, sample) : (field.text || '');
   el.setAttribute('style', certFieldStyle(field));
-  el.innerHTML = esc(text) + '<span class="cd-handle"></span>';
+  el.innerHTML = esc(text) + editorFieldHandles();
 }
 function renderFieldPanel(field){
   const fontOpts = Object.keys(CERT_FONTS).map(k =>
@@ -4294,8 +4348,9 @@ function renderFieldPanel(field){
     '<div class="grid-2" style="gap:8px;">' +
       '<label class="field"><span>X %</span><input type="number" step="0.1" data-cd-prop="x" value="' + (Number(field.x)||0).toFixed(1) + '"></label>' +
       '<label class="field"><span>Y %</span><input type="number" step="0.1" data-cd-prop="y" value="' + (Number(field.y)||0).toFixed(1) + '"></label>' +
-      '<label class="field"><span>Width %</span><input type="number" step="0.1" data-cd-prop="w" value="' + (Number(field.w)||30).toFixed(1) + '"></label>' +
-      '<label class="field"><span>Font Size</span><input type="number" step="0.1" min="0.5" data-cd-prop="fontSize" value="' + (Number(field.fontSize)||3).toFixed(1) + '"></label>' +
+      '<label class="field"><span>Width % (ಅಗಲ)</span><input type="number" step="0.1" min="5" max="100" data-cd-prop="w" value="' + (Number(field.w)||30).toFixed(1) + '"></label>' +
+      '<label class="field"><span>Height % (ಎತ್ತರ)</span><input type="number" step="0.1" min="0" max="100" data-cd-prop="h" placeholder="auto" value="' + (Number(field.h) > 0 ? Number(field.h).toFixed(1) : '') + '"></label>' +
+      '<label class="field"><span>Font Size (ಅಕ್ಷರ ಗಾತ್ರ)</span><input type="number" step="0.1" min="0.5" max="30" data-cd-prop="fontSize" value="' + (Number(field.fontSize)||3).toFixed(1) + '"></label>' +
       '<label class="field"><span>Font</span><select data-cd-prop="fontFamily">' + fontOpts + '</select></label>' +
       '<label class="field"><span>Color</span><input type="color" data-cd-prop="color" value="' + (/^#[0-9a-fA-F]{6}$/.test(field.color||'') ? field.color : '#14243A') + '"></label>' +
       '<label class="field"><span>Align</span><select data-cd-prop="align">' +
@@ -4303,11 +4358,11 @@ function renderFieldPanel(field){
         '<option value="center"' + (field.align==='center'?' selected':'') + '>Center</option>' +
         '<option value="right"' + (field.align==='right'?' selected':'') + '>Right</option>' +
       '</select></label>' +
-      '<label class="field"><span>Weight</span><select data-cd-prop="bold">' +
-        '<option value="0"' + (!field.bold?' selected':'') + '>Normal</option>' +
-        '<option value="1"' + (field.bold?' selected':'') + '>Bold</option>' +
-      '</select></label>' +
+      '<label class="field"><span>Weight</span>' +
+        '<input type="text" value="Bold (700)" disabled>' +
+      '</label>' +
     '</div>' +
+    '<p class="certdes-info" style="margin:-2px 0 10px;">Height is optional: leave it empty for the automatic height, or set a percentage of the certificate height. Every label is always bold.</p>' +
     '<button type="button" class="btn btn-danger btn-sm" data-action="certdes-del" data-id="' + esc(field.id) + '">Delete Field</button>';
 }
 
@@ -4322,21 +4377,26 @@ function adminCertDesigner(){
   const sample = certSampleData();
 
   const previewStudents = certPreviewStudents();
-  const previewStudentOpts = previewStudents.length
-    ? previewStudents.map(function(u){
-        const nm = u.name || u.email || u.id;
-        return '<option value="' + esc(u.id) + '"' +
-          (u.id === certPreview.studentId || (!certPreview.studentId && u.id === previewStudents[0].id) ? ' selected' : '') +
-          '>' + esc(nm) + (u.kgid ? ' · ' + esc(u.kgid) : '') + '</option>';
-      }).join('')
-    : '<option value="">— ಯಾವುದೇ ಶಿಬಿರಾರ್ಥಿ ಖಾತೆ ಇಲ್ಲ —</option>';
-  const previewTrainingOpts = DB.trainings.length
-    ? DB.trainings.map(function(t){
-        return '<option value="' + esc(t.id) + '"' +
-          (t.id === certPreview.trainingId || (!certPreview.trainingId && t.id === DB.trainings[0].id) ? ' selected' : '') +
-          '>' + esc(t.title) + '</option>';
-      }).join('')
-    : '<option value="">— ಯಾವುದೇ ತರಬೇತಿ ಇಲ್ಲ —</option>';
+  const previewStudentOpts =
+    '<option value="' + CERT_PREVIEW_SAMPLE + '"' +
+      (certPreview.studentId === CERT_PREVIEW_SAMPLE ? ' selected' : '') +
+      '>Sample Student · Teacher · 123456</option>' +
+    previewStudents.map(function(u){
+      const nm = u.name || u.email || u.id;
+      const bits = [nm, u.designation, u.kgid].filter(Boolean).map(esc).join(' · ');
+      return '<option value="' + esc(u.id) + '"' +
+        (u.id === certPreview.studentId ? ' selected' : '') +
+        '>' + bits + '</option>';
+    }).join('');
+  const previewTrainingOpts =
+    '<option value="' + CERT_PREVIEW_SAMPLE + '"' +
+      (certPreview.trainingId === CERT_PREVIEW_SAMPLE ? ' selected' : '') +
+      '>Sample Training · ' + esc(CERT_SAMPLE_VALUES.trainingStart) + ' – ' + esc(CERT_SAMPLE_VALUES.trainingEnd) + '</option>' +
+    DB.trainings.map(function(t){
+      return '<option value="' + esc(t.id) + '"' +
+        (t.id === certPreview.trainingId ? ' selected' : '') +
+        '>' + esc(t.title) + (t.startDate ? ' · ' + esc(dateRange(t.startDate, t.endDate)) : '') + '</option>';
+    }).join('');
 
   /* the six supported labels — no outdated fields */
   const autoFields = CERT_LABELS;
@@ -4359,7 +4419,7 @@ function adminCertDesigner(){
     '<div class="certdes-canvas-wrap">' +
       '<div class="row" style="justify-content:space-between;margin-bottom:10px;">' +
         '<span class="certdes-tag' + (d.useCustom ? '' : ' static') + '">' + (d.useCustom ? 'CUSTOM ACTIVE' : 'DEFAULT ACTIVE') + '</span>' +
-        '<span class="certdes-info">Drag fields to move · drag corner to resize</span>' +
+        '<span class="certdes-info">LIVE PREVIEW · drag text to move · gold dot = width · gold bar = height</span>' +
       '</div>' +
       '<div class="certdes-canvas" id="certdesCanvas" style="' + aspectStyle + '">' +
         (bg
@@ -4376,7 +4436,7 @@ function adminCertDesigner(){
     '<div class="certdes-panel">' +
       '<div class="certdes-section">' +
         '<h4>Preview data</h4>' +
-        '<p class="certdes-info">Real participant and training details are shown on the canvas, so you can check every label position.</p>' +
+        '<p class="certdes-info">The canvas is a live preview — it repaints as soon as you move a label, change its width, height, font size, colour or text. Pick a real participant or training to check the actual details.</p>' +
         '<label class="field" style="margin-bottom:10px;"><span>Participant</span>' +
           '<select data-cd-preview="student">' + previewStudentOpts + '</select></label>' +
         '<label class="field" style="margin-bottom:0;"><span>Training</span>' +
@@ -4445,9 +4505,11 @@ function selectCertField(id){
 function syncCertFieldPanel(field){
   const panel = document.getElementById('certdesProps');
   if(!panel) return;
-  ['x','y','w'].forEach(p => {
+  ['x','y','w','h','fontSize'].forEach(p => {
     const inp = panel.querySelector('[data-cd-prop="' + p + '"]');
-    if(inp) inp.value = (Number(field[p]) || 0).toFixed(1);
+    if(!inp) return;
+    if(p === 'h') inp.value = Number(field.h) > 0 ? Number(field.h).toFixed(1) : '';
+    else inp.value = (Number(field[p]) || 0).toFixed(1);
   });
 }
 function bindCertDesInputs(){
@@ -4467,9 +4529,11 @@ function bindCertDesInputs(){
       if(!field) return;
       const prop = el.getAttribute('data-cd-prop');
       let v = el.value;
-      if(['x','y','w','fontSize'].indexOf(prop) !== -1) v = Number(v) || 0;
-      if(prop === 'bold') v = v === '1';
+      if(['x','y','w','h','fontSize'].indexOf(prop) !== -1) v = Number(v) || 0;
       field[prop] = v;
+      /* the canvas is the live preview: it repaints on every keystroke.
+         The panel keeps exactly what was typed — syncing it here would
+         rewrite the number under the caret and break typing. */
       updateEditorField(field);
     });
   });
@@ -5743,12 +5807,12 @@ document.addEventListener('click', function(e){
         id: uid('cd'),
         type: 'auto',
         key: key,
-        x: 30, y: 40, w: 40,
+        x: 30, y: 40, w: 40, h: 0,
         fontSize: 3,
         fontFamily: 'kn',
         color: '#14243A',
         align: 'center',
-        bold: false
+        bold: true
       });
       certDesState.selectedId = certDesState.design.fields[certDesState.design.fields.length - 1].id;
       render();
@@ -5763,12 +5827,12 @@ document.addEventListener('click', function(e){
         id: uid('cd'),
         type: 'static',
         text: txt,
-        x: 20, y: 55, w: 60,
+        x: 20, y: 55, w: 60, h: 0,
         fontSize: 2.6,
         fontFamily: 'kn',
         color: '#14243A',
         align: 'center',
-        bold: false
+        bold: true
       });
       certDesState.selectedId = certDesState.design.fields[certDesState.design.fields.length - 1].id;
       render();
@@ -5806,7 +5870,8 @@ document.addEventListener('click', function(e){
 /* ---------- Certificate designer: drag/resize ---------- */
 document.addEventListener('pointerdown', function(e){
   if(!certDesState.design) return;
-  const handle = e.target.closest('.cd-handle');
+  const heightHandle = e.target.closest('.cd-handle-h');
+  const widthHandle  = e.target.closest('.cd-handle');
   const fieldEl = e.target.closest('.certdes-field');
   if(!fieldEl) return;
   e.preventDefault();
@@ -5820,7 +5885,17 @@ document.addEventListener('pointerdown', function(e){
   if(!canvas) return;
   const rect = canvas.getBoundingClientRect();
 
-  if(handle){
+  if(heightHandle){
+    /* start from the height currently on screen, so the first drag feels
+       continuous even when the label still has its automatic height */
+    const shownH = fieldEl.getBoundingClientRect().height;
+    certDesState.dragging = {
+      mode:'resize-h', id:id,
+      startY:e.clientY,
+      startH: Number(field.h) > 0 ? Number(field.h) : (rect.height ? (shownH / rect.height) * 100 : 8),
+      rectH:rect.height
+    };
+  } else if(widthHandle){
     certDesState.dragging = { mode:'resize', id:id, startX:e.clientX, startW:Number(field.w)||30, rectW:rect.width };
   } else {
     certDesState.dragging = {
@@ -5843,6 +5918,9 @@ document.addEventListener('pointermove', function(e){
     const dyPct = ((e.clientY - d.startY) / d.rectH) * 100;
     field.x = Math.max(0, Math.min(100, d.startXpct + dxPct));
     field.y = Math.max(0, Math.min(100, d.startYpct + dyPct));
+  } else if(d.mode === 'resize-h'){
+    const dyPct = ((e.clientY - d.startY) / d.rectH) * 100;
+    field.h = Math.max(2, Math.min(100 - (Number(field.y)||0), d.startH + dyPct));
   } else {
     field.w = Math.max(5, Math.min(100 - (Number(field.x)||0), d.startW + dxPct));
   }
