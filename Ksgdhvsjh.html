@@ -9,8 +9,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- Local-only build: no backend scripts, no external services.
-     Accounts and records live in this browser's localStorage. -->
+<!-- Backend: Supabase (Postgres + Auth + Storage).
+     The browser only ever holds the project URL and the publishable key;
+     every table is protected by row level security. Never add the
+     service-role / secret key to this file. -->
 
 <style>
 /* ============================================================
@@ -196,24 +198,6 @@ input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink);}
 }
 .login-card h2{font-size:24px;margin-bottom:4px;color:var(--navy);}
 .login-card .sub{color:var(--grey);font-size:14px;margin-bottom:24px;}
-.demo-panel{margin-top:22px;border:1px dashed #D6D2C4;border-radius:12px;background:#FCFBF7;padding:0 14px;}
-.demo-panel summary{
-  cursor:pointer;font-size:13.5px;font-weight:600;color:var(--darkblue);
-  padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px;
-}
-.demo-panel summary::-webkit-details-marker{display:none;}
-.demo-panel summary::after{content:"›";margin-left:auto;font-size:18px;transition:transform .2s;color:var(--gold);}
-.demo-panel[open] summary::after{transform:rotate(90deg);}
-.demo-list{display:grid;gap:8px;padding-bottom:14px;}
-.demo-item{
-  display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line-soft);
-  border-radius:9px;padding:8px 11px;font-size:13px;cursor:pointer;transition:.16s;text-align:left;width:100%;
-}
-.demo-item:hover{border-color:var(--gold);background:#FFFDF8;}
-.demo-item .di-name{font-weight:600;color:var(--navy);}
-.demo-item .di-cred{color:var(--grey);font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;}
-.demo-item .di-role{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--lightblue);color:var(--darkblue);font-weight:600;}
-.demo-item .di-role.admin{background:#F6EEDD;color:#8A6D2F;}
 .login-note{font-size:12px;color:var(--grey);margin-top:14px;line-height:1.7;}
 
 /* ============================================================
@@ -577,11 +561,6 @@ body.modal-open{overflow:hidden;}
 .gate-state.pending .gs-dot{background:#C79A2E;}
 .gate-state.rejected .gs-dot{background:var(--red);}
 .gate-state.disabled .gs-dot{background:var(--grey);}
-.setup-banner{
-  background:#FFFBF0;border-bottom:1px solid #EBD9AE;color:#7A5E1E;
-  padding:9px 16px;font-size:12.5px;line-height:1.6;text-align:center;
-}
-.setup-banner b{font-weight:700;}
 @media (max-width:520px){
   .gate-card{padding:24px 18px;}
 }
@@ -766,6 +745,8 @@ body.modal-open{overflow:hidden;}
   body.print-mode .cert-custom-stage{border:none;}
 }
 </style>
+<!-- supabase-js: the browser client. Only the publishable key is ever used. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous" defer></script>
 </head>
 <body>
 <div id="app"></div>
@@ -893,7 +874,7 @@ function emblem(size, gold, light){
 }
 
 /* ============================================================
-   SECTION B — DATA LAYER (localStorage)
+   SECTION B — CONSTANTS & EMPTY STATE
    ============================================================ */
 const STORE_KEY   = 'dti_bng_v1';
 const DRAFT_PREFIX= 'dti_draft_';
@@ -901,95 +882,13 @@ const INSTITUTE   = 'ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ, �
 const INSTITUTE_EN= 'District Training Institute, Bengaluru City';
 const RATINGS     = ['ಅತ್ಯುತ್ತಮ','ಉತ್ತಮ','ತೃಪ್ತಿಕರ','ಸಾಧಾರಣ'];
 
-/* ---- Default assessment questions (exact Kannada text) ---- */
-function defaultQuestions(){
-  return [
-    { id:'q1', marks:1,
-      text:'ಕರ್ನಾಟಕ ವಿಧಾನಸಭೆ ಮತ್ತು ವಿಧಾನ ಪರಿಷತ್ತಿನಲ್ಲಿ ಚುಕ್ಕೆ ಗುರುತಿನ ಪ್ರಶ್ನೆ ಎಂದರೆ ಯಾವುದು?',
-      options:['ಲಿಖಿತ ಉತ್ತರ ಪಡೆಯುವ ಪ್ರಶ್ನೆ','ಮೌಖಿಕ ಉತ್ತರ ಪಡೆಯುವ ಪ್ರಶ್ನೆ','ಚರ್ಚೆಗೆ ಮಾತ್ರ ಸೀಮಿತವಾದ ಪ್ರಶ್ನೆ','ಉತ್ತರದ ಅಗತ್ಯವಿಲ್ಲದ ಪ್ರಶ್ನೆ'] },
-    { id:'q2', marks:1,
-      text:'ಚುಕ್ಕೆ ಗುರುತಿಲ್ಲದ ಪ್ರಶ್ನೆಗಳಿಗೆ ಯಾವ ರೀತಿಯಲ್ಲಿ ಉತ್ತರ ನೀಡಲಾಗುತ್ತದೆ?',
-      options:['ಮೌಖಿಕವಾಗಿ','ಲಿಖಿತವಾಗಿ','ಚರ್ಚೆಯ ಮೂಲಕ','ಮತದಾನದ ಮೂಲಕ'] },
-    { id:'q3', marks:1,
-      text:'ಚುಕ್ಕೆ ಗುರುತಿನ ಪ್ರಶ್ನೆಯನ್ನು ಗುರುತಿಸಲು ಯಾವ ಚಿಹ್ನೆಯನ್ನು ಬಳಸಲಾಗುತ್ತದೆ?',
-      options:['#','@','*','%'] },
-    { id:'q4', marks:1,
-      text:'ವಿಧಾನಸಭೆ ಅಥವಾ ವಿಧಾನ ಪರಿಷತ್ತಿನಲ್ಲಿ ಪ್ರಶ್ನೋತ್ತರ ಅವಧಿಯಲ್ಲಿ ಕೇಳಲಾದ ಪ್ರಶ್ನೆಗೆ ಸಂಬಂಧಿಸಿದಂತೆ ಉತ್ತರ ನೀಡಲು ಸಾಧ್ಯವಾಗದಿದ್ದರೆ, ಅದನ್ನು ಯಾವ ಅವಧಿಗೆ ಮುಂದೂಡಲಾಗುತ್ತದೆ?',
-      options:['ಮುಂದಿನ ಅಧಿವೇಶನಕ್ಕೆ','ಶೂನ್ಯ ವೇಳೆಗೆ','ಮುಂದಿನ ದಿನದ ಪ್ರಶ್ನೋತ್ತರ ಅವಧಿಗೆ','ಅನಿರ್ದಿಷ್ಟ ಅವಧಿಗೆ'] },
-    { id:'q5', marks:1,
-      text:'ಚುಕ್ಕೆ ಗುರುತಿನ ಪ್ರಶ್ನೆಗೆ ಸಚಿವರು ಉತ್ತರಿಸಿದ ನಂತರ ಸದಸ್ಯರು ಏನು ಮಾಡಬಹುದು?',
-      options:['ಮತದಾನ ಮಾಡಬಹುದು','ಪೂರಕ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಬಹುದು','ಸದನವನ್ನು ಮುಂದೂಡಬಹುದು','ನಿರ್ಣಯ ಮಂಡಿಸಬಹುದು'] },
-    { id:'q6', marks:1,
-      text:'ಚುಕ್ಕೆ ಗುರುತಿಲ್ಲದ ಪ್ರಶ್ನೆಗೆ ಉತ್ತರ ನೀಡಿದ ನಂತರ ಪೂರಕ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಲು ಅವಕಾಶವಿದೆಯೇ?',
-      options:['ಇದೆ','ಇಲ್ಲ','ಸಭಾಧ್ಯಕ್ಷರ ಅನುಮತಿಯಿದ್ದರೆ ಮಾತ್ರ','ಸಚಿವರ ಅನುಮತಿಯಿದ್ದರೆ ಮಾತ್ರ'] },
-    { id:'q7', marks:1,
-      text:'ಚುಕ್ಕೆ ಗುರುತಿನ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸುವ ಸಂದರ್ಭದಲ್ಲಿ ಸದನದಲ್ಲಿ ಪ್ರಶ್ನೆಗಳನ್ನು ಕರೆಯುವ ಜವಾಬ್ದಾರಿ ಯಾರಿಗಿರುತ್ತದೆ?',
-      options:['ಮುಖ್ಯಮಂತ್ರಿಗಳಿಗೆ','ಸಂಬಂಧಪಟ್ಟ ಸಚಿವರಿಗೆ','ಸಭಾಧ್ಯಕ್ಷರು / ಸಭಾಪತಿಗಳಿಗೆ','ವಿರೋಧ ಪಕ್ಷದ ನಾಯಕರಿಗೆ'] },
-    { id:'q8', marks:1,
-      text:'ಕರ್ನಾಟಕ ವಿಧಾನಸಭೆ ಅಥವಾ ವಿಧಾನ ಪರಿಷತ್ತಿನಲ್ಲಿ ಗಮನ ಸೆಳೆಯುವ ಸೂಚನೆಯ (Calling Attention Notice) ಮುಖ್ಯ ಉದ್ದೇಶವೇನು?',
-      options:['ಸರ್ಕಾರದ ವಿರುದ್ಧ ಅವಿಶ್ವಾಸ ನಿರ್ಣಯ ಮಂಡಿಸುವುದು','ಸಾರ್ವಜನಿಕ ಮಹತ್ವದ ತುರ್ತು ವಿಷಯದ ಬಗ್ಗೆ ಸಂಬಂಧಪಟ್ಟ ಸಚಿವರ ಗಮನ ಸೆಳೆಯುವುದು','ಹೊಸ ಮಸೂದೆಯನ್ನು ಮಂಡಿಸುವುದು','ಸದನದ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡುವುದು'] },
-    { id:'q9', marks:1,
-      text:'ಶೂನ್ಯ ವೇಳೆಯ (Zero Hour) ಮುಖ್ಯ ಉದ್ದೇಶವೇನು?',
-      options:['ಸಾರ್ವಜನಿಕ ಮಹತ್ವದ ತುರ್ತು ವಿಷಯಗಳನ್ನು ಪ್ರಸ್ತಾಪಿಸುವುದು','ಸದನದ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡುವುದು','ವಾರ್ಷಿಕ ಬಜೆಟ್ ಮಂಡಿಸುವುದು','ಮಸೂದೆಗಳಿಗೆ ಅಂತಿಮ ಅನುಮೋದನೆ ನೀಡುವುದು'] },
-    { id:'q10', marks:1,
-      text:'ಚುಕ್ಕೆ ಗುರುತಿನ ಮತ್ತು ಚುಕ್ಕೆ ಗುರುತಿಲ್ಲದ ಪ್ರಶ್ನೆಗಳ ಮುಖ್ಯ ಉದ್ದೇಶವೇನು?',
-      options:['ಸರ್ಕಾರದ ಕಾರ್ಯಚಟುವಟಿಕೆಗಳ ಬಗ್ಗೆ ಮಾಹಿತಿ ಪಡೆಯುವುದು ಮತ್ತು ಸರ್ಕಾರದ ಜವಾಬ್ದಾರಿಯನ್ನು ಖಚಿತಪಡಿಸುವುದು','ಕೇವಲ ರಾಜಕೀಯ ಚರ್ಚೆ ನಡೆಸುವುದು','ಹೊಸ ಕಾನೂನುಗಳನ್ನು ರಚಿಸುವುದು','ಸದನದ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡುವುದು'] }
-  ];
-}
-/* Correct answers stored SEPARATELY from visible question data */
-function defaultAnswerKey(){
-  return { q1:1, q2:1, q3:2, q4:2, q5:1, q6:1, q7:2, q8:1, q9:0, q10:0 };
-}
+/* ---- The built-in demo paper is gone ----
+   Trainings, their questions and their answer keys now live in the database
+   only. Keeping a hard-coded paper here would ship an answer key inside the
+   public page (and nobody asked for it to be seeded), so it is removed. */
 
-/* ---- Default feedback structure ---- */
-function defaultFeedback(){
-  return {
-    day:'ದಿನ- 23-11-2026',
-    sessions:[
-      {
-        heading:'ಅಧಿವೇಶನ-1-3',
-        topic:'ವಿಷಯ: ಕಾಯ್ದೆಗಳು, ವಿಧೇಯಕಗಳು, ನಿಯಮಗಳು, ವಿನಿಯಮಗಳು, ಬೈಲಾಸ್‌ ಬಗ್ಗೆ ಸಂಕ್ಷಿಪ್ತ ವಿವರಗಳು, ಸಂವಿಧಾನದ ಅವಶ್ಯಕತೆಗಳು, ಕರ್ನಾಟಕ ವಿಧಾನ ‌ಸಭೆ ಮತ್ತು ವಿಧಾನ ಪರಿಷತ್ ಕಾರ್ಯಕಲಾಪಗಳು, ಸಮಿತಿಗಳು, ಶೂನ್ಯ ವೇಳೆ',
-        lecturer:'ಉಪನ್ಯಾಸಕರು: ಸೀನಾ ಪಿ, ಜಂಟಿ ನಿರ್ದೇಶಕರು, ಸಚಿವಾಲಯ'
-      },
-      {
-        heading:'ಅಧಿವೇಶನ- 4-5',
-        topic:'ವಿಷಯ: ಚುಕ್ಕೆ ಗುರುತಿನ ಹಾಗೂ ಚುಕ್ಕೆ ಗುರುತಿಲ್ಲದ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸುವ ಕ್ರಮ',
-        lecturer:'ಉಪನ್ಯಾಸಕರು: ವತ್ಸಲ ಆರ್‌, ಬೋಧಕರು'
-      }
-    ],
-    questions:[
-      { id:'f1', text:'ತರಬೇತಿಯ ಉದ್ದೇಶಗಳನ್ನು ಸಾಧಿಸಲಾಗಿದೆಯೇ ?', type:'radio', options:['ಹೌದು','ಇಲ್ಲ'] },
-      { id:'f2', text:'ನಿಮ್ಮ ವೃತ್ತಿ / ಕಾರ್ಯ ಕ್ಷೇತ್ರಕ್ಕೆ ತರಬೇತಿಯು ಹೇಗೆ ಸಹಕಾರಿಯಾಗಿದೆ ?', type:'radio', options:['ತುಂಬಾ ಉಪಯುಕ್ತ','ಉಪಯುಕ್ತ','ಸಾಧಾರಣ'] },
-      { id:'f3', text:'ಈ ತರಬೇತಿಯು ಪ್ರಾಯೋಗಿಕಾತ್ಮವಾಗಿತ್ತೆ ?', type:'radio', options:['ಪ್ರಾಯೋಗಿಕಾತ್ಮಕ','ಸೈದ್ಧಾಂತಿಕ (Theory)'] },
-      { id:'f4', text:'ಸಹ ಶಿಬಿರಾರ್ಥಿಗಳಿಂದ ಚರ್ಚೆಗಳು / ಕಲಿಕಾ ಸೌಲಭ್ಯಗಳು', type:'radio', options:['ಹೆಚ್ಚಿನ ಸೌಲಭ್ಯಗಳಾಯಿತು.','ಕಡಿಮೆ ಸೌಲಭ್ಯಗಳಾಯಿತು.'] },
-      { id:'f5', text:'ಬೋಧಕರು ಮತ್ತು ಸಂಪನ್ಮೂಲ ವ್ಯಕ್ತಿಗಳೊಂದಿಗಿನ ಸಂವಹನ ?', type:'radio', options:['ತೃಪ್ತಿಕರ','ಅತೃಪ್ತಿಕರ'] },
-      { id:'f6', text:'ತರಬೇತಿಯಿಂದ ಕಲಿತ 2 ಅಂಶಗಳು;', type:'textarea', options:[] },
-      { id:'f7', text:'ತರಬೇತಿ ಕಾರ್ಯಕ್ರಮದ ಒಟ್ಟಾರೆ ಅಭಿಪ್ರಾಯ', type:'radio', options:['ಅತ್ಯುತ್ತಮ','ಉತ್ತಮ','ತೃಪ್ತಿಕರ','ಸಾಧಾರಣ'] },
-      { id:'f8', text:'ತರಬೇತಿ ಕಾರ್ಯಕುರಿತು ಸಲಹೆಗಳು ?', type:'textarea', options:[] }
-    ]
-  };
-}
-
-/* ---- Default training programme ---- */
-function defaultTraining(){
-  return {
-    id:'t_assembly',
-    title:'ಪ್ರವೇಶ ನಂತರ ಪರೀಕ್ಷೆ ಮತ್ತು ತರಬೇತಿ',
-    topic:'ಕರ್ನಾಟಕ ವಿಧಾನಸಭೆ ಮತ್ತು ವಿಧಾನ ಪರಿಷತ್ತಿನ ಚುಕ್ಕೆ ಗುರುತಿಲ್ಲದ ಮತ್ತು ಚುಕ್ಕೆ ಗುರುತಿನ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸುವ ಕ್ರಮ',
-    date:'23-11-2026',
-    institute:INSTITUTE,
-    category:'ವಿಧಾನಮಂಡಲ ಕಾರ್ಯವಿಧಾನ',
-    accent:'#1D3557',
-    description:'ಕರ್ನಾಟಕ ವಿಧಾನಮಂಡಲದ ಪ್ರಶ್ನೋತ್ತರ ಕಲಾಪಗಳು, ಚುಕ್ಕೆ ಗುರುತಿನ ಹಾಗೂ ಚುಕ್ಕೆ ಗುರುತಿಲ್ಲದ ಪ್ರಶ್ನೆಗಳ ಸ್ವರೂಪ ಮತ್ತು ಅವುಗಳಿಗೆ ಉತ್ತರಿಸುವ ಕ್ರಮದ ಕುರಿತು ಅಧಿಕಾರಿಗಳಿಗೆ ವೃತ್ತಿಪರ ತರಬೇತಿ.',
-    passing:70,
-    createdAt:nowISO(),
-    questions:defaultQuestions(),
-    answerKey:defaultAnswerKey(),
-    feedback:defaultFeedback()
-  };
-}
-
-/* The shape of a fresh, empty browser database. */
+/* The in-memory mirror of the database. Views read DB.*; the loaders in
+   SECTION C.2 refill it from Supabase after every login and write. */
 function emptyDB(){
   return {
     version:2,
@@ -998,159 +897,322 @@ function emptyDB(){
     submissions:[],
     certificates:[],
     session:null,
-    certCounter:0,
     settings:{ defaultPassing:70 }
   };
 }
 
 /* ============================================================
-   SECTION B.2 — LOCAL SESSION (no backend)
+   SECTION B.2 — SUPABASE CLIENT, GOOGLE SIGN-IN & ACCOUNT GATE
    ------------------------------------------------------------
-   The portal does not talk to Firebase (or any server) any more.
-   Accounts and records live in this browser's localStorage, so
-   "signing in" means picking which local profile to use.
+   Only publishable values live in this file: the project URL and
+   the publishable key. They are designed to be public — every
+   table is guarded by row level security and every privileged
+   action runs inside a security-definer RPC.
 
-   The rest of the app still reads DB.users / DB.session and asks
-   authIsAdmin() about the role, so a real provider can be dropped
-   in here later without touching the views.
+   NEVER put the service-role / secret key in this file, in any
+   other client file, or in the repository.
+
+   profiles.status drives the gate:
+     pending   registered, waiting for the administrator
+     approved  full access
+     rejected  registration declined
+     disabled  access revoked
    ============================================================ */
 
-const LOCAL_ADMIN_ID = 'u_admin';
+let DB = emptyDB();
 
-function authIsAdmin(){
-  const u = currentUser();
-  return !!(u && u.role === 'admin');
+const SUPABASE_URL = 'https://yjqfaexhoxbunnaydkdx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hMS1oi98-p9Csmo6PBSkUw_9a4ArfFU';
+const CERT_BUCKET  = 'certificate-assets';
+const CERT_BG_PATH_KEY = 'dti_cert_bg_path';
+
+let sb = null;
+if(window.supabase && typeof window.supabase.createClient === 'function'){
+  try{
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce'
+      }
+    });
+  }catch(err){
+    console.warn('[supabase] client init failed', err && err.message);
+    sb = null;
+  }
 }
 
-/* ---- sign in: name + role, stored locally ---- */
-function signInLocal(form){
-  const nameEl = form.querySelector('[name="name"]');
-  const roleEl = form.querySelector('[name="role"]');
-  const name = String((nameEl && nameEl.value) || '').trim();
-  const role = (roleEl && roleEl.value === 'student') ? 'student' : 'admin';
+const AUTH = {
+  session: null,
+  user: null,
+  profile: null,
+  gate: sb ? 'loading' : 'config',
+  error: '',
+  busy: false
+};
 
-  const msg = document.getElementById('loginMsg');
+function authIsAdmin(){
+  return !!(AUTH.profile && AUTH.profile.role === 'admin' && AUTH.profile.status === 'approved');
+}
+function authIsApproved(){
+  return !!(AUTH.profile && AUTH.profile.status === 'approved');
+}
+
+/* ---- profiles row -> the user shape the views already use ---- */
+function profileToUser(row){
+  if(!row) return null;
+  const meta = (AUTH.user && AUTH.user.user_metadata) || {};
+  return {
+    id: row.id,
+    name: row.official_name || meta.full_name || meta.name || row.email || '',
+    email: row.email || '',
+    kgid: row.kgid || '',
+    designation: row.designation || '',
+    department: row.department || '',
+    role: row.role === 'admin' ? 'admin' : 'student',
+    status: row.status || 'pending'
+  };
+}
+
+function computeGate(){
+  if(!sb) return 'config';
+  if(!AUTH.session) return 'signedout';
+  const p = AUTH.profile;
+  if(!p) return 'profile-missing';
+  if(p.status === 'rejected') return 'rejected';
+  if(p.status === 'disabled') return 'disabled';
+  if(p.role === 'admin') return 'ready';
+  if(!String(p.kgid || '').trim()) return 'needs-details';
+  if(p.status !== 'approved') return 'pending';
+  return 'ready';
+}
+
+/* ---- error text ---- */
+function authErrorMessage(err){
+  const raw = String((err && (err.message || err.error_description || err.code)) || '');
+  const low = raw.toLowerCase();
+  if(low.indexOf('provider is not enabled') > -1 || low.indexOf('unsupported provider') > -1){
+    return 'Google ಸೈನ್ ಇನ್ ಇನ್ನೂ ಸಕ್ರಿಯವಾಗಿಲ್ಲ. Supabase → Authentication → Providers ನಲ್ಲಿ Google ಸಕ್ರಿಯಗೊಳಿಸಿ.';
+  }
+  if(low.indexOf('redirect') > -1 && (low.indexOf('not allowed') > -1 || low.indexOf('invalid') > -1)){
+    return 'ಈ URL Supabase ನಲ್ಲಿ ಅಧಿಕೃತವಾಗಿಲ್ಲ. Authentication → URL Configuration ನಲ್ಲಿ Site URL ಮತ್ತು Redirect URL ಸೇರಿಸಿ.';
+  }
+  if(low.indexOf('network') > -1 || low.indexOf('failed to fetch') > -1){
+    return 'ನೆಟ್‌ವರ್ಕ್ ದೋಷ. ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.';
+  }
+  return 'ಸೈನ್ ಇನ್ ವಿಫಲವಾಯಿತು. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.' + (raw ? ' (' + raw + ')' : '');
+}
+
+function dataErrorMessage(err){
+  const msg = String((err && err.message) || '');
+  const code = String((err && err.code) || '');
+  const map = {
+    'not-authenticated': 'ಅವಧಿ ಮುಗಿದಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.',
+    'no-profile': 'ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.',
+    'not-approved': 'ನಿಮ್ಮ ಖಾತೆ ಇನ್ನೂ ಅನುಮೋದಿತವಾಗಿಲ್ಲ.',
+    'already-submitted': 'ನೀವು ಈಗಾಗಲೇ ಈ ಪರೀಕ್ಷೆಯನ್ನು ಸಲ್ಲಿಸಿದ್ದೀರಿ.',
+    'training-not-open': 'ಈ ತರಬೇತಿ ಈಗ ಲಭ್ಯವಿಲ್ಲ.',
+    'training-not-found': 'ತರಬೇತಿ ಕಂಡುಬಂದಿಲ್ಲ.',
+    'answer-key-missing': 'ಈ ತರಬೇತಿಯ ಉತ್ತರ ಕೀ ಸಂರಚಿಸಿಲ್ಲ. ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.',
+    'not-admin': 'ಈ ಕ್ರಿಯೆ ನಿರ್ವಾಹಕರಿಗೆ ಮಾತ್ರ.',
+    'invalid-status': 'ಅಮಾನ್ಯ ಸ್ಥಿತಿ.',
+    'profile-not-found': 'ಖಾತೆ ಕಂಡುಬಂದಿಲ್ಲ.'
+  };
+  if(map[msg]) return map[msg];
+  if(code === '23505' || msg.indexOf('duplicate key') > -1){
+    return 'ಈ ದಾಖಲೆ ಈಗಾಗಲೇ ಇದೆ.';
+  }
+  if(code === '42501' || msg.indexOf('row-level security') > -1 || msg.indexOf('permission denied') > -1){
+    return 'ಅನುಮತಿ ಇಲ್ಲ. ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.';
+  }
+  return 'ಕ್ರಿಯೆ ವಿಫಲವಾಯಿತು. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.' + (msg ? ' (' + msg + ')' : '');
+}
+
+/* ---- sign in / out ---- */
+function signInGoogle(){
+  if(!sb || AUTH.busy) return;
+  AUTH.busy = true;
+  render();
+  const redirectTo = window.location.href.split('#')[0];
+  sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: redirectTo } })
+    .then(function(res){
+      if(res && res.error) throw res.error;
+      /* the browser leaves for Google; if it stays, the popup was blocked */
+    })
+    .catch(function(err){
+      AUTH.busy = false;
+      const text = authErrorMessage(err);
+      console.warn('[auth] sign-in failed', err && (err.message || err.code));
+      toast(text, 'error');
+      const box = document.getElementById('loginMsg');
+      if(box){ box.className = 'form-msg show error'; box.textContent = text; }
+      render();
+    });
+}
+
+function signOut(){
+  const finish = function(){
+    AUTH.session = null; AUTH.user = null; AUTH.profile = null;
+    AUTH.busy = false;
+    AUTH.gate = sb ? 'signedout' : 'config';
+    AUTH.error = '';
+    authHandled = null;
+    resetAppData();
+    /* the old local-only build kept the whole database here; drop it */
+    try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+    render();
+  };
+  if(!sb){ finish(); return; }
+  sb.auth.signOut().then(finish).catch(function(err){
+    console.warn('[auth] sign-out failed', err && (err.message || err.code));
+    finish();
+  });
+}
+
+/* ---- session plumbing ---- */
+let authHandled = null;
+
+function handleSession(session){
+  const user = (session && session.user) || null;
+  const uidValue = user ? user.id : null;
+
+  AUTH.session = session || null;
+  AUTH.user = user || null;
+
+  if(!uidValue){
+    AUTH.profile = null;
+    AUTH.gate = 'signedout';
+    authHandled = null;
+    resetAppData();
+    render();
+    return;
+  }
+  if(authHandled === uidValue && AUTH.gate === 'ready'){
+    /* a silent token refresh — the data on screen is still valid */
+    render();
+    return;
+  }
+  authHandled = uidValue;
+  AUTH.gate = 'loading';
+  render();
+  loadProfileAndPortal();
+}
+
+function loadProfileAndPortal(){
+  const uidValue = AUTH.user.id;
+  return sb.from('profiles').select('*').eq('id', uidValue).maybeSingle()
+    .then(function(res){
+      if(res.error) throw res.error;
+      AUTH.profile = res.data || null;
+      AUTH.gate = computeGate();
+      if(AUTH.profile){
+        DB.session = { userId: uidValue, at: nowISO() };
+        DB.users = [profileToUser(AUTH.profile)];
+      }else{
+        DB.session = null;
+        DB.users = [];
+      }
+      render();
+      if(AUTH.gate === 'ready') return reloadPortalData();
+      return null;
+    })
+    .catch(function(err){
+      console.warn('[auth] profile read failed', err && (err.message || err.code));
+      AUTH.gate = 'error';
+      AUTH.error = (err && err.message) || 'profile-load-failed';
+      render();
+    });
+}
+
+/* save the details a student fills in after the very first sign-in */
+function saveProfileDetails(form){
+  const p = AUTH.profile;
+  if(!p || !AUTH.user) return;
+  const val = function(name){
+    const el = form.querySelector('[name="' + name + '"]');
+    return String((el && el.value) || '').trim();
+  };
+  const officialName = val('officialName');
+  const kgidValue = val('kgid');
+  const designation = val('designation');
+  const department = val('department');
+  const msg = document.getElementById('profileMsg');
   const fail = function(text){
     if(msg){ msg.className = 'form-msg show error'; msg.textContent = text; }
     toast(text, 'error');
   };
+  if(!officialName){ fail('ಅಧಿಕೃತ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.'); return; }
+  if(!kgidValue){ fail('ಕೆ.ಜಿ.ಐ.ಡಿ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ.'); return; }
+  if(!designation){ fail('ಹುದ್ದೆಯನ್ನು ನಮೂದಿಸಿ.'); return; }
 
-  if(!name){ fail('ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.'); return; }
-
-  let user = null;
-  if(role === 'admin'){
-    user = DB.users.find(function(x){ return x.id === LOCAL_ADMIN_ID; }) || null;
-    if(!user){
-      user = {
-        id: LOCAL_ADMIN_ID,
-        name: name,
-        email: '',
-        kgid: '',
-        designation: 'ಉಪ ಪ್ರಾಂಶುಪಾಲರು',
-        department: '',
-        role: 'admin',
-        status: 'approved',
-        createdAt: nowISO()
-      };
-      DB.users.push(user);
-    }
-    user.name = name;
-  }else{
-    user = DB.users.find(function(x){
-      return x.role === 'student' && String(x.name).toLowerCase() === name.toLowerCase();
-    }) || null;
-    if(user && (user.status === 'rejected' || user.status === 'disabled')){
-      fail('ಈ ಖಾತೆಗೆ ಪ್ರವೇಶ ನಿಲ್ಲಿಸಲಾಗಿದೆ. ಸಂಸ್ಥೆಯ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.');
-      return;
-    }
-    if(!user){
-      user = {
-        id: uid('u'),
-        name: name,
-        email: '',
-        kgid: '',
-        designation: '',
-        department: '',
-        role: 'student',
-        status: 'approved',
-        createdAt: nowISO()
-      };
-      DB.users.push(user);
-    }
-  }
-
-  DB.session = { userId: user.id, at: nowISO() };
-  saveDB();
-  state.route = 'dashboard';
-  state.adminSection = 'overview';
-  state.editing = null;
+  AUTH.busy = true;
   render();
-  toast('ಸ್ವಾಗತ, ' + user.name + '!', 'success');
+
+  /* exactly the four self-service columns granted to the student role */
+  sb.from('profiles')
+    .update({ official_name:officialName, kgid:kgidValue, designation:designation, department:department })
+    .eq('id', AUTH.user.id)
+    .then(function(res){
+      if(res.error) throw res.error;
+      return sb.from('profiles').select('*').eq('id', AUTH.user.id).maybeSingle();
+    })
+    .then(function(res){
+      if(res.error) throw res.error;
+      AUTH.profile = res.data || AUTH.profile;
+      AUTH.busy = false;
+      AUTH.gate = computeGate();
+      DB.users = [profileToUser(AUTH.profile)];
+      DB.session = { userId: AUTH.user.id, at: nowISO() };
+      render();
+      toast('ನಿಮ್ಮ ವಿವರಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ.', 'success');
+      if(AUTH.gate === 'ready') return reloadPortalData();
+      return null;
+    })
+    .catch(function(err){
+      AUTH.busy = false;
+      console.warn('[profile] save failed', err && (err.message || err.code));
+      fail(dataErrorMessage(err));
+      render();
+    });
 }
 
-function signOutLocal(){
-  DB.session = null;
+function bootAuth(){
+  if(!sb){ AUTH.gate = 'config'; return; }
+  sb.auth.onAuthStateChange(function(event, session){
+    /* never await a supabase call inside this callback: the client holds a
+       lock while it runs, so hand the work to the next tick */
+    setTimeout(function(){ handleSession(session); }, 0);
+  });
+  sb.auth.getSession()
+    .then(function(res){
+      if(res && res.error) throw res.error;
+      handleSession(res && res.data ? res.data.session : null);
+    })
+    .catch(function(err){
+      console.warn('[auth] session read failed', err && (err.message || err.code));
+      AUTH.gate = 'error';
+      AUTH.error = (err && err.message) || 'session-load-failed';
+      render();
+    });
+}
+
+function resetAppData(){
+  DB = emptyDB();
+  ACCOUNTS.list = [];
+  ACCOUNTS.loaded = false;
+  ACCOUNTS.loading = false;
+  ACCOUNTS.error = '';
+  DataStore.loaded = false;
+  DataStore.loading = false;
+  DataStore.error = '';
   state.route = 'dashboard';
   state.adminSection = 'overview';
   state.trainingId = null;
   state.stage = 1;
   state.draft = null;
   state.editing = null;
-  saveDB();
-  render();
-  toast('ನೀವು ಯಶಸ್ವಿಯಾಗಿ ಲಾಗ್ ಔಟ್ ಆಗಿದ್ದೀರಿ.', 'success');
-}
-
-/* ---- admin approval actions (local accounts) ---- */
-function setStudentStatus(id, status){
-  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
-  const user = DB.users.find(function(x){ return x.id === id; });
-  if(!user) return Promise.reject(new Error('not-found'));
-  user.status = status;
-  if((status === 'rejected' || status === 'disabled') && DB.session && DB.session.userId === id){
-    DB.session = null;
-  }
-  saveDB();
-  return Promise.resolve(true);
-}
-
-let DB = null;
-
-/* ------------------------------------------------------------
-   Local cache — used ONLY for the in-progress training draft and
-   for offline tolerance. There is no server: this IS the data.
-   ------------------------------------------------------------ */
-function loadDB(){
-  try{
-    const raw = localStorage.getItem(STORE_KEY);
-    if(!raw){
-      DB = emptyDB();
-      return;
-    }
-    const parsed = JSON.parse(raw);
-    DB = parsed && typeof parsed === 'object' ? deepCopy(parsed) : emptyDB();
-
-    /* structural healing — never throws away server-fetched data */
-    if(!Array.isArray(DB.users)) DB.users = [];
-    if(!Array.isArray(DB.trainings)) DB.trainings = [];
-    if(!Array.isArray(DB.submissions)) DB.submissions = [];
-    if(!Array.isArray(DB.certificates)) DB.certificates = [];
-    if(typeof DB.certCounter !== 'number') DB.certCounter = 0;
-    if(!DB.settings) DB.settings = { defaultPassing:70 };
-    if(DB.session === undefined) DB.session = null;
-  }catch(e){
-    console.warn('[db] local cache unreadable, starting empty', e);
-    DB = emptyDB();
-  }
-}
-function saveDB(){
-  try{
-    localStorage.setItem(STORE_KEY, JSON.stringify(DB));
-    return true;
-  }catch(e){
-    toast('ಡೇಟಾವನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಸ್ಟೋರೇಜ್ ಸ್ಥಳಾವಕಾಶ ಪರಿಶೀಲಿಸಿ.','error');
-    return false;
-  }
+  state.filter = { training:'', q:'', cert:'' };
 }
 
 /* ============================================================
@@ -1177,8 +1239,8 @@ function getSubmission(userId, trainingId){
 function submissionsForTraining(tid){ return DB.submissions.filter(s => s.trainingId === tid); }
 
 function logout(){
-  /* clears the local session as well as the app state */
-  signOutLocal();
+  /* ends the Supabase session; handleSession() clears the app state */
+  signOut();
 }
 
 /* ---- Draft persistence ---- */
@@ -1238,79 +1300,290 @@ function newDraft(user){
 }
 
 /* ============================================================
-   SECTION C.2 — LOCAL DATA LAYER
+   SECTION C.2 — SUPABASE DATA LAYER
    ------------------------------------------------------------
-   Everything the portal stores lives in this browser (localStorage,
-   through DB / saveDB()). This is the section that used to be the
-   Firestore adapter. It keeps the small API the views call, seeds
-   the built-in training on a fresh browser and mints certificate
-   numbers locally.
+   Reads go straight through row level security; writes go through
+   RLS or through the three prescribed RPCs:
 
-   Nothing here talks to a server. When a real backend is added
-   later, this is the only section that has to change.
+     submit_assessment(p_training_id, p_answers, p_feedback,
+                       p_official_name, p_kgid, p_email)
+     admin_save_answer_key(p_training_id, p_answer_key)
+     admin_set_profile_status(p_profile_id, p_status)
+
+   Answer keys live in private.training_answer_keys and are never
+   selected here — the browser cannot read them at all.
+
+   Everything is mirrored into the DB.* shape the views already use
+   (DB.users / DB.trainings / DB.submissions / DB.certificates /
+   DB.settings), so the Kannada UI needed no redesign.
    ============================================================ */
 
-const DataStore = {
-  loadedTrainings: false,
-  loadedSubmissions: false,
-  loadedCertificates: false,
-  error: '',
-  reload: null
-};
+const DataStore = { loaded:false, loading:false, error:'', reload:null };
 
-/* First run in this browser: install the built-in Kannada training.
-   A register the admin deliberately emptied is left empty (seededOnce). */
-function seedLocalData(){
-  if(!DB.trainings.length && !DB.seededOnce){
-    DB.trainings.push(defaultTraining());
-  }
-  DB.seededOnce = true;
-  saveDB();
+function unwrap(res){
+  if(res && res.error) throw res.error;
+  return res ? res.data : null;
 }
 
+/* ---- rows -> view shapes ---- */
+function trainingFromRow(row, questions){
+  return {
+    id: row.id,
+    title: row.title || '',
+    topic: row.topic || '',
+    date: row.date || '',
+    description: row.description || '',
+    category: row.category || '',
+    accent: row.accent || '#1D3557',
+    institute: row.institute || INSTITUTE,
+    passing: Number(row.passing) || 70,
+    published: row.published !== false,
+    archived: !!row.archived,
+    createdAt: row.created_at || '',
+    /* never present on a client-readable training */
+    answerKey: null,
+    questions: (questions || []).map(function(q){
+      return {
+        id: q.id,
+        text: q.text || '',
+        options: Array.isArray(q.options) ? q.options : [],
+        marks: Number(q.marks) || 1
+      };
+    }),
+    feedback: {
+      day: row.feedback_day || '',
+      sessions: Array.isArray(row.feedback_sessions) ? row.feedback_sessions : [],
+      questions: Array.isArray(row.feedback_questions) ? row.feedback_questions : []
+    }
+  };
+}
+
+function submissionFromRow(row){
+  const t = DB.trainings.find(function(x){ return x.id === row.training_id; }) || null;
+  const correct = Number(row.correct_count) || 0;
+  const wrong = Number(row.wrong_count) || 0;
+  return {
+    id: row.id,
+    userId: row.student_id,
+    userName: row.official_name || '',
+    trainingId: row.training_id,
+    trainingTitle: t ? t.title : (row.training_title || ''),
+    trainingTopic: t ? t.topic : '',
+    trainingDate: t ? t.date : '',
+    details: { name: row.official_name || '', email: row.email || '', kgid: row.kgid || '' },
+    feedback: row.feedback || { ratings:{}, answers:{} },
+    answers: row.answers || {},
+    result: {
+      correct: correct,
+      wrong: wrong,
+      totalQuestions: correct + wrong,
+      total: Number(row.total_marks) || 0,
+      marks: Number(row.marks_obtained) || 0,
+      pct: Number(row.percentage) || 0,
+      passed: !!row.pass_status,
+      passing: Number(row.passing_percent) || 70
+    },
+    submittedAt: row.submitted_at || nowISO(),
+    certificateNo: row.certificate_serial || null
+  };
+}
+
+function certificateFromRow(row){
+  return {
+    id: row.id,
+    number: row.serial,
+    submissionId: row.submission_id,
+    userId: row.student_id,
+    studentName: row.student_name || '',
+    kgid: row.kgid || '',
+    trainingId: row.training_id,
+    trainingTitle: row.training_title || '',
+    trainingTopic: row.training_topic || '',
+    date: row.training_date || '',
+    marks: Number(row.marks) || 0,
+    total: Number(row.total) || 0,
+    pct: Number(row.percentage) || 0,
+    issuedAt: row.issued_at || ''
+  };
+}
+
+/* ---- loaders ---- */
+function loadTrainingsForRead(){
+  const admin = authIsAdmin();
+  let q = sb.from('trainings').select('*').order('created_at', { ascending:false });
+  if(!admin) q = q.eq('published', true).eq('archived', false);
+  return q.then(unwrap).then(function(rows){
+    const list = rows || [];
+    const ids = list.map(function(r){ return r.id; });
+    if(!ids.length){ DB.trainings = []; return DB.trainings; }
+    return sb.from('training_questions')
+      .select('*')
+      .in('training_id', ids)
+      .order('position', { ascending:true })
+      .then(unwrap)
+      .then(function(qs){
+        const byTraining = {};
+        (qs || []).forEach(function(q){
+          if(!byTraining[q.training_id]) byTraining[q.training_id] = [];
+          byTraining[q.training_id].push(q);
+        });
+        DB.trainings = list.map(function(r){ return trainingFromRow(r, byTraining[r.id] || []); });
+        return DB.trainings;
+      });
+  });
+}
+
+function loadSubmissionsForRead(){
+  return sb.from('submissions').select('*').order('submitted_at', { ascending:false })
+    .then(unwrap)
+    .then(function(rows){ DB.submissions = (rows || []).map(submissionFromRow); return DB.submissions; });
+}
+
+function loadCertificatesForRead(){
+  return sb.from('certificates').select('*').order('issued_at', { ascending:false })
+    .then(unwrap)
+    .then(function(rows){ DB.certificates = (rows || []).map(certificateFromRow); return DB.certificates; });
+}
+
+function profileRowToAccount(r){
+  return {
+    _id: r.id,
+    officialName: r.official_name || '',
+    email: r.email || '',
+    kgid: r.kgid || '',
+    designation: r.designation || '',
+    department: r.department || '',
+    status: r.status || 'pending',
+    role: r.role || 'student',
+    createdAt: r.created_at || ''
+  };
+}
+
+function loadProfilesForAdmin(){
+  if(!authIsAdmin()) return Promise.resolve([]);
+  return sb.from('profiles').select('*').order('created_at', { ascending:false })
+    .then(unwrap)
+    .then(function(rows){
+      const list = (rows || []).map(profileRowToAccount);
+      /* keep the legacy shape in step so the CSV export and the designer's
+         sample certificate see every account, not just the admin's own */
+      DB.users = (rows || []).map(profileToUser);
+      ACCOUNTS.list = list;
+      ACCOUNTS.loaded = true;
+      ACCOUNTS.loading = false;
+      ACCOUNTS.error = '';
+      return list;
+    });
+}
+
+function loadPortalSettings(){
+  return sb.from('portal_settings').select('*').maybeSingle().then(unwrap).then(function(row){
+    if(row) DB.settings = { defaultPassing: Number(row.default_passing) || 70 };
+    return DB.settings;
+  }).catch(function(err){
+    console.warn('[data] settings read failed', err && err.message); return null;
+  });
+}
+
+function loadCertificateDesign(){
+  return sb.from('certificate_design').select('*').maybeSingle().then(unwrap).then(function(row){
+    if(!row) return null;
+    const design = {
+      useCustom: !!row.use_custom,
+      aspect: Number(row.aspect) || 1.414,
+      fields: Array.isArray(row.fields) ? row.fields : []
+    };
+    certDesState.design = deepCopy(design);
+    saveCertDesign(design);
+    const path = row.background_path || '';
+    if(!path){
+      certDesState.bg = '';
+      try{ localStorage.removeItem(CERT_BG_PATH_KEY); }catch(e){}
+      clearCertBg();
+      return null;
+    }
+    let cached = '';
+    try{
+      cached = localStorage.getItem(CERT_BG_PATH_KEY) === path ? loadCertBg() : '';
+    }catch(e){ cached = ''; }
+    if(cached){ certDesState.bg = cached; return cached; }
+    return downloadCertBackground(path);
+  }).catch(function(err){
+    console.warn('[data] certificate design read failed', err && (err.message || err.code));
+    return null;
+  });
+}
+
+function blobToDataUrl(blob){
+  return new Promise(function(resolve, reject){
+    try{
+      const reader = new FileReader();
+      reader.onload = function(ev){ resolve(String((ev && ev.target && ev.target.result) || '')); };
+      reader.onerror = function(){ reject(new Error('blob-read-failed')); };
+      reader.readAsDataURL(blob);
+    }catch(e){ reject(e); }
+  });
+}
+
+function dataUrlToBlob(dataUrl){
+  const parts = String(dataUrl || '').split(',');
+  const meta = parts[0] || '';
+  const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'image/png';
+  const bytes = atob(parts[1] || '');
+  const buffer = new Uint8Array(bytes.length);
+  for(let i = 0; i < bytes.length; i++) buffer[i] = bytes.charCodeAt(i);
+  return new Blob([buffer], { type: mime });
+}
+
+function downloadCertBackground(path){
+  return sb.storage.from(CERT_BUCKET).download(path).then(function(res){
+    if(res && res.error) throw res.error;
+    return blobToDataUrl(res.data);
+  }).then(function(dataUrl){
+    certDesState.bg = dataUrl;
+    saveCertBg(dataUrl);
+    try{ localStorage.setItem(CERT_BG_PATH_KEY, path); }catch(e){}
+    return dataUrl;
+  }).catch(function(err){
+    console.warn('[data] certificate background download failed', err && (err.message || err.code));
+    return null;
+  });
+}
+
+/* ---- the one entry point the rest of the app calls ---- */
 function reloadPortalData(){
-  seedLocalData();
-  render();
-  return Promise.resolve();
+  if(!sb || !AUTH.session || AUTH.gate !== 'ready'){
+    render();
+    return Promise.resolve();
+  }
+  DataStore.loading = true;
+  DataStore.error = '';
+  return loadTrainingsForRead()
+    .then(function(){
+      return Promise.all([
+        loadSubmissionsForRead(),
+        loadCertificatesForRead(),
+        loadProfilesForAdmin(),
+        loadPortalSettings(),
+        loadCertificateDesign()
+      ]);
+    })
+    .then(function(){
+      DataStore.loading = false;
+      DataStore.loaded = true;
+      render();
+      return true;
+    })
+    .catch(function(err){
+      DataStore.loading = false;
+      DataStore.error = (err && err.message) || 'load-failed';
+      console.warn('[data] load failed', err && (err.message || err.code));
+      toast(dataErrorMessage(err), 'error');
+      render();
+      return false;
+    });
 }
 DataStore.reload = reloadPortalData;
-
-/* ------------------------------------------------------------
-   certificate numbers
-
-   There is no server-side counter any more, so a certificate gets
-   the clearly marked provisional form
-
-     DTI-BNG-<year>-PROV-<uid token>-<NN>
-
-   The uid token keeps two people's numbers apart, and PROV means it
-   can never be mistaken for a register serial.
-   ------------------------------------------------------------ */
-function certUidToken(uidValue){
-  const src = String(uidValue || 'anon');
-  let hashed = 0;
-  for(let i = 0; i < src.length; i++){
-    hashed = ((hashed << 5) - hashed + src.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hashed).toString(36).toUpperCase().padStart(5, '0').slice(0, 5);
-}
-
-function formatProvisionalCertNumber(year, uidValue, seq){
-  return 'DTI-BNG-' + year + '-PROV-' + certUidToken(uidValue) + '-' + String(seq).padStart(2, '0');
-}
-
-/* Is this number a provisional one rather than a register serial? */
-function isProvisionalCertNumber(no){
-  return /-PROV-/.test(String(no || ''));
-}
-
-/* Per-browser attempt counter. Uniqueness between people comes from
-   the uid token in the number itself. */
-function nextLocalCertSeq(){
-  DB.certCounter = (Number(DB.certCounter) || 0) + 1;
-  saveDB();
-  return DB.certCounter;
-}
 
 /* ============================================================
    SECTION D — RENDER ENTRY
@@ -1318,10 +1591,17 @@ function nextLocalCertSeq(){
 const appEl = document.getElementById('app');
 
 function render(){
+  /* The account gate comes first: nothing inside the portal draws until
+     Supabase has told us who this is and the profile says how far in
+     they are allowed to go. */
+  if(AUTH.gate !== 'ready'){
+    appEl.innerHTML = viewGate();
+    bindPostRender();
+    return;
+  }
   const u = currentUser();
-
   if(!u){
-    appEl.innerHTML = viewLogin();
+    appEl.innerHTML = viewGate();
     bindPostRender();
     return;
   }
@@ -1347,7 +1627,10 @@ function bindPostRender(){
       if(!state.editing) return;
       let v = el.value;
       const p = el.dataset.bind;
-      if(/(\.|^)(correct|passing|marks)$/.test(p)) v = Number(v) || 0;
+      if(/(\.|^)(correct|passing|marks)$/.test(p)){
+        /* an empty answer-key select means "leave the stored key alone" */
+        v = (v === '' && /correct$/.test(p)) ? null : (Number(v) || 0);
+      }
       setPath(state.editing, p, v);
     };
     el.addEventListener('input', handler);
@@ -1404,71 +1687,161 @@ function bindPostRender(){
     bindAccountFilters();
   }
 
-  /* backup file picker */
-  const bfi = document.getElementById('backupFileInput');
-  if(bfi && !bfi.__bound){
-    bfi.__bound = true;
-    bfi.addEventListener('change', function(e){
-      const f = e.target.files && e.target.files[0];
-      handleBackupFile(f);
-      e.target.value = '';
-    });
-  }
 }
 
 /* ============================================================
-   SECTION E — LOGIN VIEW
-   ============================================================ */
-/* ============================================================
-   SECTION E — LOCAL SIGN-IN
+   SECTION E — GOOGLE SIGN-IN & ACCOUNT GATE VIEWS
    ------------------------------------------------------------
-   There is no Google / Firebase sign-in any more: the portal runs
-   in this browser only, so "signing in" just picks which local
-   profile to use. This screen is the seam where a real auth
-   provider (Supabase, later) will go.
+   Google (through Supabase OAuth) is the only way in. The same two
+   column layout carries every gate state: signed out, waiting for
+   approval, declined, disabled, first-sign-in details and errors.
    ============================================================ */
-function viewLogin(){
+
+const GOOGLE_MARK = '<svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">' +
+  '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
+  '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
+  '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
+  '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+
+function loginBrand(){
+  return '' +
+  '<div class="login-brand">' +
+    '<div class="brand-inner">' +
+      emblem(94) +
+      '<h1 class="brand-kn">ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ</h1>' +
+      '<div class="brand-city">ಬೆಂಗಳೂರು ನಗರ</div>' +
+      '<div class="brand-en">District Training Institute, Bengaluru City</div>' +
+      '<div class="brand-rule"></div>' +
+      '<p class="brand-tag">ಸರ್ಕಾರಿ ಅಧಿಕಾರಿಗಳ ವೃತ್ತಿಪರ ತರಬೇತಿ, ಮೌಲ್ಯಮಾಪನ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ವಿತರಣಾ ವ್ಯವಸ್ಥೆ</p>' +
+      '<ul class="brand-points">' +
+        '<li>' + ICON.check + '<span>ತರಬೇತಿ ಪ್ರತಿಕ್ರಿಯೆ ಸಂಗ್ರಹಣೆ</span></li>' +
+        '<li>' + ICON.check + '<span>ಪ್ರವೇಶ ನಂತರ ಮೌಲ್ಯಮಾಪನ ಪರೀಕ್ಷೆ</span></li>' +
+        '<li>' + ICON.check + '<span>ಸ್ವಯಂಚಾಲಿತ ಫಲಿತಾಂಶ ಮತ್ತು ಡಿಜಿಟಲ್ ಪ್ರಮಾಣಪತ್ರ</span></li>' +
+        '<li>' + ICON.check + '<span>ನಿರ್ವಾಹಕರಿಗೆ ಸಂಪೂರ್ಣ ತರಬೇತಿ ನಿರ್ವಹಣೆ</span></li>' +
+      '</ul>' +
+    '</div>' +
+  '</div>';
+}
+
+function loginPage(title, sub, inner, footNote){
   return '' +
   '<div class="login-page">' +
-    '<div class="login-brand">' +
-      '<div class="brand-inner">' +
-        emblem(94) +
-        '<h1 class="brand-kn">ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ</h1>' +
-        '<div class="brand-city">ಬೆಂಗಳೂರು ನಗರ</div>' +
-        '<div class="brand-en">District Training Institute, Bengaluru City</div>' +
-        '<div class="brand-rule"></div>' +
-        '<p class="brand-tag">ಸರ್ಕಾರಿ ಅಧಿಕಾರಿಗಳ ವೃತ್ತಿಪರ ತರಬೇತಿ, ಮೌಲ್ಯಮಾಪನ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ವಿತರಣಾ ವ್ಯವಸ್ಥೆ</p>' +
-        '<ul class="brand-points">' +
-          '<li>' + ICON.check + '<span>ತರಬೇತಿ ಪ್ರತಿಕ್ರಿಯೆ ಸಂಗ್ರಹಣೆ</span></li>' +
-          '<li>' + ICON.check + '<span>ಪ್ರವೇಶ ನಂತರ ಮೌಲ್ಯಮಾಪನ ಪರೀಕ್ಷೆ</span></li>' +
-          '<li>' + ICON.check + '<span>ಸ್ವಯಂಚಾಲಿತ ಫಲಿತಾಂಶ ಮತ್ತು ಡಿಜಿಟಲ್ ಪ್ರಮಾಣಪತ್ರ</span></li>' +
-          '<li>' + ICON.check + '<span>ನಿರ್ವಾಹಕರಿಗೆ ಸಂಪೂರ್ಣ ತರಬೇತಿ ನಿರ್ವಹಣೆ</span></li>' +
-        '</ul>' +
-      '</div>' +
-    '</div>' +
+    loginBrand() +
     '<div class="login-panel">' +
       '<div class="login-card">' +
-        '<h2>ಸ್ವಾಗತ</h2>' +
-        '<p class="sub">ಮುಂದುವರಿಯಲು ನಿಮ್ಮ ಹೆಸರು ಮತ್ತು ಪಾತ್ರವನ್ನು ಆಯ್ಕೆಮಾಡಿ</p>' +
-        '<form data-form="local-signin" novalidate>' +
-          '<label class="field"><span>ನಿಮ್ಮ ಹೆಸರು *</span>' +
-            '<input type="text" name="name" placeholder="ಉದಾ: ಸವಿತಾ ಕೆ. ಎಚ್." autocomplete="name" required></label>' +
-          '<label class="field"><span>ಪಾತ್ರ</span>' +
-            '<select name="role">' +
-              '<option value="admin">ನಿರ್ವಾಹಕರು (Admin)</option>' +
-              '<option value="student">ಶಿಬಿರಾರ್ಥಿ (Student)</option>' +
-            '</select></label>' +
-          '<div class="form-msg" id="loginMsg"></div>' +
-          '<button type="submit" class="btn btn-primary btn-block">ಪ್ರವೇಶಿಸಿ</button>' +
-        '</form>' +
-        '<div class="auth-alt">' +
-          '<b>ನಿರ್ವಾಹಕರು:</b> ತರಬೇತಿ, ಫಲಿತಾಂಶ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ನಿರ್ವಹಣೆ.<br>' +
-          '<b>ಶಿಬಿರಾರ್ಥಿಗಳು:</b> ತರಬೇತಿ, ಪ್ರತಿಕ್ರಿಯೆ, ಮೌಲ್ಯಮಾಪನ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ.' +
-        '</div>' +
-        '<p class="login-note">ಈ ಆವೃತ್ತಿ ಇನ್ನೂ ಸರ್ವರ್‌ಗೆ ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ — ಖಾತೆಗಳು ಮತ್ತು ದಾಖಲೆಗಳು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉಳಿಯುತ್ತವೆ.</p>' +
+        '<h2>' + esc(title) + '</h2>' +
+        (sub ? '<p class="sub">' + sub + '</p>' : '') +
+        inner +
+        (footNote ? '<p class="login-note">' + footNote + '</p>' : '') +
       '</div>' +
     '</div>' +
   '</div>';
+}
+
+function signOutButton(label){
+  return '<button type="button" class="btn btn-ghost btn-block" data-action="sign-out">' + (label || 'ಸೈನ್ ಔಟ್') + '</button>';
+}
+
+function viewGate(){
+  if(AUTH.gate === 'config'){
+    return loginPage('ಸಂಪರ್ಕ ಸಂರಚನೆ ಬಾಕಿ',
+      'Supabase ಕ್ಲೈಂಟ್ ಲೋಡ್ ಆಗಲಿಲ್ಲ',
+      '<div class="form-msg show error">supabase-js ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಪುಟವನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ.</div>' +
+      '<button type="button" class="btn btn-primary btn-block" onclick="location.reload()">ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ</button>');
+  }
+  if(AUTH.gate === 'loading'){
+    return loginPage('ಸ್ವಾಗತ',
+      'ನಿಮ್ಮ ಖಾತೆಯನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…',
+      '<div class="form-msg show">ಒಂದು ಕ್ಷಣ ಕಾಯಿರಿ.</div>');
+  }
+  if(AUTH.gate === 'signedout' || AUTH.gate === 'ready'){
+    return viewLogin();
+  }
+  if(AUTH.gate === 'needs-details'){
+    return viewProfileDetails();
+  }
+  if(AUTH.gate === 'profile-missing'){
+    return loginPage('ಖಾತೆ ಸಿದ್ಧವಾಗಿಲ್ಲ',
+      'ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ರಚನೆಯಾಗಿಲ್ಲ',
+      '<div class="form-msg show error">' +
+        'ನಿಮ್ಮ Google ಖಾತೆ ದಾಖಲಾಗಿದೆ, ಆದರೆ ಪ್ರೊಫೈಲ್ ಸಾಲು ಕಂಡುಬಂದಿಲ್ಲ. ' +
+        'ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ (savithakh80@gmail.com).' +
+      '</div>' +
+      (AUTH.user ? '<p class="sub">' + esc(AUTH.user.email || '') + '</p>' : '') +
+      signOutButton());
+  }
+  if(AUTH.gate === 'pending'){
+    return loginPage('ಅನುಮೋದನೆ ಬಾಕಿ ಇದೆ',
+      'ನಿಮ್ಮ ನೋಂದಣಿ ನಿರ್ವಾಹಕರ ಪರಿಶೀಲನೆಯಲ್ಲಿದೆ',
+      '<div class="form-msg show">' +
+        'ನಿಮ್ಮ ಖಾತೆ ಯಶಸ್ವಿಯಾಗಿ ದಾಖಲಾಗಿದೆ. ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆಯ ನಿರ್ವಾಹಕರು ಅನುಮೋದಿಸಿದ ನಂತರ ' +
+        'ತರಬೇತಿಗಳು, ಮೌಲ್ಯಮಾಪನ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರಗಳು ಲಭ್ಯವಾಗುತ್ತವೆ.' +
+      '</div>' +
+      (AUTH.profile ? '<div class="auth-alt"><b>ಹೆಸರು:</b> ' + esc(AUTH.profile.official_name || '—') +
+        '<br><b>ಇಮೇಲ್:</b> ' + esc(AUTH.profile.email || '—') +
+        '<br><b>ಕೆ.ಜಿ.ಐ.ಡಿ:</b> ' + esc(AUTH.profile.kgid || '—') + '</div>' : '') +
+      signOutButton());
+  }
+  if(AUTH.gate === 'rejected'){
+    return loginPage('ನೋಂದಣಿ ತಿರಸ್ಕರಿಸಲಾಗಿದೆ',
+      'ಈ ಖಾತೆಗೆ ಪ್ರವೇಶ ನೀಡಲಾಗಿಲ್ಲ',
+      '<div class="form-msg show error">ನಿಮ್ಮ ನೋಂದಣಿ ನಿರ್ವಾಹಕರಿಂದ ತಿರಸ್ಕರಿಸಲಾಗಿದೆ. ' +
+        'ಮಾಹಿತಿಗಾಗಿ ಸಂಸ್ಥೆಯ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.</div>' +
+      signOutButton());
+  }
+  if(AUTH.gate === 'disabled'){
+    return loginPage('ಖಾತೆ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ',
+      'ಈ ಖಾತೆಗೆ ಪ್ರವೇಶ ನಿಲ್ಲಿಸಲಾಗಿದೆ',
+      '<div class="form-msg show error">ನಿಮ್ಮ ಖಾತೆಯನ್ನು ನಿರ್ವಾಹಕರು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದ್ದಾರೆ. ' +
+        'ಮರುಸಕ್ರಿಯಗೊಳಿಸಲು ಸಂಸ್ಥೆಯ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.</div>' +
+      signOutButton());
+  }
+  /* error */
+  return loginPage('ಸಂಪರ್ಕ ದೋಷ',
+    'ಖಾತೆಯ ಮಾಹಿತಿ ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ',
+    '<div class="form-msg show error">' + esc(AUTH.error || 'unknown-error') + '</div>' +
+    '<button type="button" class="btn btn-primary btn-block" data-action="retry-profile">ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ</button>' +
+    signOutButton());
+}
+
+function viewLogin(){
+  return loginPage('ಸ್ವಾಗತ',
+    'ಮುಂದುವರಿಯಲು ನಿಮ್ಮ Google ಖಾತೆಯಿಂದ ಸೈನ್ ಇನ್ ಮಾಡಿ',
+    '<button type="button" class="gbtn" data-action="google-signin"' +
+      (AUTH.busy ? ' disabled' : '') + '>' +
+      GOOGLE_MARK + '<span>' + (AUTH.busy ? 'Google ಗೆ ಕರೆದೊಯ್ಯುತ್ತಿದೆ…' : 'Google ಮೂಲಕ ಸೈನ್ ಇನ್') + '</span>' +
+    '</button>' +
+    '<div class="form-msg" id="loginMsg"></div>' +
+    '<div class="auth-alt">' +
+      '<b>ನಿರ್ವಾಹಕರು:</b> ತರಬೇತಿ, ಫಲಿತಾಂಶ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ನಿರ್ವಹಣೆ.<br>' +
+      '<b>ಶಿಬಿರಾರ್ಥಿಗಳು:</b> ತರಬೇತಿ, ಪ್ರತಿಕ್ರಿಯೆ, ಮೌಲ್ಯಮಾಪನ ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ.' +
+    '</div>',
+    'ಮೊದಲ ಬಾರಿ ಸೈನ್ ಇನ್ ಮಾಡಿದಾಗ ನಿಮ್ಮ ಹೆಸರು, ಕೆ.ಜಿ.ಐ.ಡಿ ಮತ್ತು ಹುದ್ದೆಯನ್ನು ನಮೂದಿಸಬೇಕು. ' +
+    'ನಿರ್ವಾಹಕರು ಅನುಮೋದಿಸಿದ ನಂತರವೇ ತರಬೇತಿಗಳು ಲಭ್ಯವಾಗುತ್ತವೆ. ಪಾಸ್‌ವರ್ಡ್ ಈ ಪೋರ್ಟಲ್‌ನಲ್ಲಿ ಸಂಗ್ರಹವಾಗುವುದಿಲ್ಲ.');
+}
+
+/* first sign-in: the four self-service fields */
+function viewProfileDetails(){
+  const p = AUTH.profile || {};
+  const meta = (AUTH.user && AUTH.user.user_metadata) || {};
+  const suggested = p.official_name || meta.full_name || meta.name || '';
+  return loginPage('ನಿಮ್ಮ ವಿವರಗಳು',
+    'ಮುಂದುವರಿಯಲು ಅಧಿಕೃತ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ',
+    '<form data-form="profile" novalidate>' +
+      '<label class="field"><span>ಅಧಿಕೃತ ಹೆಸರು *</span>' +
+        '<input type="text" name="officialName" value="' + esc(suggested) + '" autocomplete="name" required></label>' +
+      '<label class="field"><span>ಕೆ.ಜಿ.ಐ.ಡಿ ಸಂಖ್ಯೆ *</span>' +
+        '<input type="text" name="kgid" value="' + esc(p.kgid || '') + '" placeholder="ಉದಾ: KGID123456" required></label>' +
+      '<label class="field"><span>ಹುದ್ದೆ *</span>' +
+        '<input type="text" name="designation" value="' + esc(p.designation || '') + '" placeholder="ಉದಾ: ಗ್ರೇಡ್-2 ಕಾರ್ಯದರ್ಶಿ" required></label>' +
+      '<label class="field"><span>ಇಲಾಖೆ</span>' +
+        '<input type="text" name="department" value="' + esc(p.department || '') + '" placeholder="ಉದಾ: ಕರ್ನಾಟಕ ಸರ್ಕಾರ"></label>' +
+      '<div class="form-msg" id="profileMsg"></div>' +
+      '<button type="submit" class="btn btn-primary btn-block"' + (AUTH.busy ? ' disabled' : '') + '>' +
+        (AUTH.busy ? 'ಉಳಿಸಲಾಗುತ್ತಿದೆ…' : 'ಉಳಿಸಿ ಮತ್ತು ಮುಂದುವರಿಯಿರಿ') + '</button>' +
+    '</form>' +
+    '<div class="auth-alt"><b>ಇಮೇಲ್:</b> ' + esc(p.email || (AUTH.user && AUTH.user.email) || '—') + '</div>' +
+    signOutButton());
 }
 
 /* ============================================================
@@ -2017,65 +2390,18 @@ function certificateHTML(t, sub, certNo){
 /* ============================================================
    SECTION I — ASSESSMENT SCORING & SUBMISSION
    ============================================================ */
-/* `key` is the answer key fetched from trainingKeys/{id} after the paper was
-   handed in. It is passed explicitly because the training document no longer
-   carries one — training.answerKey only exists in the offline demo DB and on
-   the admin's screens. */
-function computeResult(training, answers, key){
-  const qs = (training && Array.isArray(training.questions)) ? training.questions : [];
-  const ans = answers || {};
-  const sheet = key || (training && training.answerKey) || {};
-  let correct = 0;
-  let earned = 0;          /* marks actually awarded, weighted per question */
-  let totalMarks = 0;      /* the most that could be earned */
-
-  qs.forEach(function(q){
-    /* Each question carries its own weight. It defaulted to 1 before, so a
-       paper of equal-weight questions scores exactly as it always did. */
-    const weight = Number(q.marks) > 0 ? Number(q.marks) : 1;
-    totalMarks += weight;
-
-    const expected = sheet[q.id];
-    const given = ans[q.id];
-    const answered = given !== undefined && given !== null && String(given) !== '';
-    if(answered && expected !== undefined && Number(given) === Number(expected)){
-      correct++;
-      earned += weight;
-    }
-  });
-
-  /* The pass mark stays a percentage of the total available marks, so
-     changing a question's weight never silently moves the pass threshold. */
-  const pct = totalMarks ? Math.round((earned / totalMarks) * 100) : 0;
-  const passing = Number(training.passing) || 70;
-
-  return {
-    correct: correct,
-    wrong: qs.length - correct,
-    total: totalMarks,        /* total marks available */
-    totalQuestions: qs.length,
-    marks: earned,            /* marks obtained */
-    pct: pct,
-    passed: pct >= passing,
-    passing: passing
-  };
-}
-
-/* Offline / unconfigured: there is no counter to read, so this is a
-   provisional number too. It used to mint DTI-BNG-<year>-0001, which is
-   the same shape as a real serial and collides with the register the
-   first time the admin issues one. */
-function nextCertificateNumber(){
-  const myUid = (currentUser() || {}).id || 'anon';
-  return formatProvisionalCertNumber(new Date().getFullYear(), myUid, nextLocalCertSeq());
-}
+/* Marking is NOT done here. The paper is sent to submit_assessment, which
+   reads the answer key from private.training_answer_keys, awards the marks,
+   decides pass/fail and mints the register serial — all inside one
+   transaction. The browser never sees the key or computes a score. */
 
 function submitAssessment(){
   const u = currentUser();
   const t = getTraining(state.trainingId);
   if(!u || !t) return;
 
-  /* duplicate guard */
+  /* duplicate guard — the database has the final say (one submission per
+     student per training), this only saves a round trip */
   if(getSubmission(u.id, t.id)){
     toast('ನೀವು ಈಗಾಗಲೇ ಈ ಪರೀಕ್ಷೆಯನ್ನು ಸಲ್ಲಿಸಿದ್ದೀರಿ.','error');
     state.stage = 4; render(); return;
@@ -2091,64 +2417,50 @@ function submitAssessment(){
 
   const details = state.draft.details || {};
 
-  /* The paper is marked here, against the answer key stored with the
-     training in this browser. */
-  let result = null;
+  /* Marking happens ONLY inside the submit_assessment RPC: the answer key
+     never reaches the browser, and the certificate serial is minted in
+     the same transaction. */
+  showStageMsg('ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…', 'ok');
+  toast('ಪರೀಕ್ಷೆ ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…', 'info');
 
-  const submission = {
-    id: uid('sub'),
-    userId: u.id,
-    userName: u.name,
-    trainingId: t.id,
-    trainingTitle: t.title,
-    trainingTopic: t.topic,
-    trainingDate: t.date,
-    details: {
-      name: details.name || u.name,
-      email: details.email || '',
-      kgid: details.kgid || ''
-    },
-    feedback: deepCopy(state.draft.feedback || { ratings:{}, answers:{} }),
-    answers: deepCopy(answers),
-    result: null,
-    submittedAt: nowISO(),
-    certificateNo: null
+  const payload = {
+    p_training_id: t.id,
+    p_answers: deepCopy(answers),
+    p_feedback: deepCopy(state.draft.feedback || { ratings:{}, answers:{} }),
+    p_official_name: String(details.name || u.name || '').trim(),
+    p_kgid: String(details.kgid || u.kgid || '').trim(),
+    p_email: String(details.email || u.email || '').trim()
   };
 
-  /* ---- mark the paper, then store the submission ---- */
-  const finish = function(certNo){
-    submission.result = result;
-    if(certNo){
-      submission.certificateNo = certNo;
-      DB.certificates.push({
-        id: 'cert_' + submission.id,
-        number: certNo,
-        submissionId: submission.id,
-        userId: u.id,
-        studentName: submission.details.name,
-        trainingId: t.id,
-        trainingTitle: t.title,
-        trainingTopic: t.topic,
-        date: t.date,
-        marks: result.marks,
-        total: result.total,
-        pct: result.pct,
-        issuedAt: nowISO()
+  sb.rpc('submit_assessment', payload)
+    .then(function(res){
+      if(res.error) throw res.error;
+      return res.data || {};
+    })
+    .then(function(result){
+      dropDraft();
+      return Promise.all([loadSubmissionsForRead(), loadCertificatesForRead()]).then(function(){
+        state.stage = 4;
+        render();
+        const passed = !!result.passed;
+        toast(passed
+          ? 'ಪರೀಕ್ಷೆ ಯಶಸ್ವಿಯಾಗಿ ಸಲ್ಲಿಸಲಾಗಿದೆ. ಅಭಿನಂದನೆಗಳು!'
+          : 'ಪರೀಕ್ಷೆ ಸಲ್ಲಿಸಲಾಗಿದೆ.', passed ? 'success' : 'info');
+        if(result.certificate_serial){
+          toast('ಪ್ರಮಾಣಪತ್ರ ಸಂಖ್ಯೆ: ' + result.certificate_serial, 'success');
+        }
       });
-    }
-    DB.submissions.push(submission);
-    saveDB();
-    dropDraft();
-    state.stage = 4;
-    render();
-    toast(result.passed
-      ? 'ಪರೀಕ್ಷೆ ಯಶಸ್ವಿಯಾಗಿ ಸಲ್ಲಿಸಲಾಗಿದೆ. ಅಭಿನಂದನೆಗಳು!'
-      : 'ಪರೀಕ್ಷೆ ಸಲ್ಲಿಸಲಾಗಿದೆ.', result.passed ? 'success' : 'info');
-  };
-
-  result = computeResult(t, answers);
-  const certNo = result.passed ? nextCertificateNumber() : null;
-  finish(certNo);
+    })
+    .catch(function(err){
+      console.warn('[submit] failed', err && (err.message || err.code));
+      const text = dataErrorMessage(err);
+      showStageMsg(text, 'error');
+      toast(text, 'error');
+      /* a duplicate means someone already got through — show their result */
+      if(String((err && err.message) || '') === 'already-submitted' || (err && err.code === '23505')){
+        loadSubmissionsForRead().then(function(){ state.stage = 4; render(); });
+      }
+    });
 }
 
 function showStageMsg(text, type){
@@ -2319,6 +2631,8 @@ function blankTrainingDraft(){
     accent:'#1D3557',
     institute:INSTITUTE,
     passing:70,
+    published:true,
+    archived:false,
     feedback:{ day:'', sessions:[{ heading:'', topic:'', lecturer:'' }], questions:[] },
     questions:[{ id:uid('q'), text:'', options:['','','',''], correct:0, marks:1 }]
   };
@@ -2336,13 +2650,19 @@ function draftFromTraining(t){
     accent:t.accent || '#1D3557',
     institute:t.institute || INSTITUTE,
     passing:Number(t.passing) || 70,
+    published: t.published !== false,
+    archived: !!t.archived,
     feedback: deepCopy(t.feedback || { day:'', sessions:[], questions:[] }),
+    /* The answer key is not readable from the browser, so an existing
+       training opens with "not set" (null) on each question. The admin
+       must pick the correct option again to change the key; leaving it
+       as null means "keep the stored key untouched". */
     questions: t.questions.map(q => ({
       id:q.id,
       text:q.text,
       options: q.options.slice(),
       marks: Number(q.marks) || 1,
-      correct: Number(t.answerKey && t.answerKey[q.id] !== undefined ? t.answerKey[q.id] : 0)
+      correct: null
     }))
   };
 }
@@ -2404,6 +2724,12 @@ function adminTrainingForm(){
       '<div class="grid-2">' +
         '<label class="field"><span>ಸರಿಯಾದ ಉತ್ತರ</span>' +
           '<select data-bind="questions.' + i + '.correct">' +
+            /* The stored key cannot be shown: it never leaves the server.
+               An existing paper therefore opens on "not set", which keeps
+               whatever key is already saved. */
+            (q.correct === null || q.correct === undefined
+              ? '<option value="" selected>' + (d.isNew ? '— ಆಯ್ಕೆಮಾಡಿ —' : '— ಬದಲಾಯಿಸಬೇಡ (ಈಗಿನ ಕೀ ಉಳಿಯುತ್ತದೆ) —') + '</option>'
+              : '') +
             (q.options||[]).map((o,j) =>
               '<option value="' + j + '"' + (Number(q.correct) === j ? ' selected' : '') + '>' +
                 'ABCD'[j] + ') ' + esc(trunc(o, 46)) + '</option>'
@@ -2479,8 +2805,16 @@ function saveTraining(){
     if(opts.length !== 4 || opts.some(o => !o)){
       errors.push('ಪ್ರಶ್ನೆ ' + (i+1) + ': ನಾಲ್ಕು ಆಯ್ಕೆಗಳು ಅಗತ್ಯ.');
     }
-    const c = Number(q.correct);
-    if(isNaN(c) || c < 0 || c > 3) errors.push('ಪ್ರಶ್ನೆ ' + (i+1) + ': ಸರಿಯಾದ ಉತ್ತರವನ್ನು ಆಯ್ಕೆಮಾಡಿ.');
+    /* a brand new paper needs every key; an existing one may keep the
+       stored key (the browser cannot show it, so "not set" is legal) */
+    const hasKey = q.correct !== null && q.correct !== undefined && String(q.correct) !== '';
+    const c = hasKey ? Number(q.correct) : NaN;
+    if(hasKey && (isNaN(c) || c < 0 || c > 3)){
+      errors.push('ಪ್ರಶ್ನೆ ' + (i+1) + ': ಸರಿಯಾದ ಉತ್ತರವನ್ನು ಆಯ್ಕೆಮಾಡಿ.');
+    }
+    if(!hasKey && d.isNew){
+      errors.push('ಪ್ರಶ್ನೆ ' + (i+1) + ': ಸರಿಯಾದ ಉತ್ತರವನ್ನು ಆಯ್ಕೆಮಾಡಿ.');
+    }
   });
 
   if(errors.length){
@@ -2493,61 +2827,103 @@ function saveTraining(){
     return;
   }
 
-  /* split visible questions from the answer key */
-  const questions = d.questions.map(q => ({
-    id: q.id || uid('q'),
-    text: String(q.text).trim(),
-    options: q.options.map(o => String(o).trim()),
-    marks: Number(q.marks) || 1
-  }));
+  /* ---- build the three writes: training row, question rows, answer key ---- */
+  const isNew = !!d.isNew;
+  const trainingId = isNew ? ('t_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6)) : d.id;
+
+  const questions = d.questions.map(function(q, idx){
+    return {
+      id: q.id || uid('q'),
+      text: String(q.text).trim(),
+      options: q.options.map(function(o){ return String(o).trim(); }),
+      marks: Number(q.marks) || 1,
+      position: idx
+    };
+  });
+
+  /* only the questions the admin actually set a key for go into the RPC;
+     an untouched question keeps whatever key is already stored server-side */
   const answerKey = {};
-  d.questions.forEach(q => { answerKey[q.id] = Number(q.correct) || 0; });
+  d.questions.forEach(function(q){
+    const hasKey = q.correct !== null && q.correct !== undefined && String(q.correct) !== '';
+    if(hasKey) answerKey[q.id] = Number(q.correct) || 0;
+  });
 
   const feedback = deepCopy(d.feedback || { day:'', sessions:[], questions:[] });
-  feedback.questions = (feedback.questions || []).map(q => ({
-    id: q.id || uid('f'),
-    text: String(q.text||'').trim(),
-    type: q.type === 'textarea' ? 'textarea' : 'radio',
-    options: q.type === 'textarea' ? [] : (q.options || []).map(o => String(o||'').trim()).filter(Boolean)
-  }));
-
-  if(d.isNew){
-    const newT = {
-      id: uid('t'),
-      title: d.title.trim(),
-      topic: d.topic.trim(),
-      date: d.date.trim(),
-      description: (d.description||'').trim(),
-      category: (d.category||'').trim(),
-      accent: d.accent || '#1D3557',
-      institute: INSTITUTE,
-      passing: passing,
-      createdAt: nowISO(),
-      questions: questions,
-      answerKey: answerKey,
-      feedback: feedback
+  feedback.questions = (feedback.questions || []).map(function(q){
+    return {
+      id: q.id || uid('f'),
+      text: String(q.text||'').trim(),
+      type: q.type === 'textarea' ? 'textarea' : 'radio',
+      options: q.type === 'textarea' ? [] : (q.options || []).map(function(o){ return String(o||'').trim(); }).filter(Boolean)
     };
-    DB.trainings.push(newT);
-    toast('ಹೊಸ ತರಬೇತಿ ಯಶಸ್ವಿಯಾಗಿ ಸೇರಿಸಲಾಗಿದೆ.','success');
-  }else{
-    const t = getTraining(d.id);
-    if(!t){ toast('ತರಬೇತಿ ಕಂಡುಬಂದಿಲ್ಲ.','error'); return; }
-    t.title = d.title.trim();
-    t.topic = d.topic.trim();
-    t.date = d.date.trim();
-    t.description = (d.description||'').trim();
-    t.category = (d.category||'').trim();
-    t.accent = d.accent || '#1D3557';
-    t.passing = passing;
-    t.questions = questions;
-    t.answerKey = answerKey;
-    t.feedback = feedback;
-    toast('ತರಬೇತಿ ಯಶಸ್ವಿಯಾಗಿ ಸಂಪಾದಿಸಲಾಗಿದೆ.','success');
-  }
+  });
 
-  saveDB();
-  state.editing = null;
-  render();
+  const row = {
+    id: trainingId,
+    title: String(d.title).trim(),
+    topic: String(d.topic).trim(),
+    date: String(d.date).trim(),
+    description: String(d.description || '').trim(),
+    category: String(d.category || '').trim(),
+    accent: d.accent || '#1D3557',
+    institute: d.institute || INSTITUTE,
+    passing: passing,
+    feedback_day: String(feedback.day || ''),
+    feedback_sessions: feedback.sessions || [],
+    feedback_questions: feedback.questions || []
+  };
+  /* a brand new training goes live immediately, as it did before; an edit
+     keeps whatever publish/archive state the row already had */
+  row.published = isNew ? true : (d.published !== false);
+  row.archived = isNew ? false : !!d.archived;
+
+  const questionRows = questions.map(function(q){
+    return {
+      training_id: trainingId,
+      id: q.id,
+      position: q.position,
+      text: q.text,
+      options: q.options,
+      marks: q.marks
+    };
+  });
+
+  const msg = document.getElementById('adminFormMsg');
+  if(msg){ msg.className = 'form-msg'; msg.innerHTML = ''; }
+  toast('ಉಳಿಸಲಾಗುತ್ತಿದೆ…','info');
+
+  sb.from('trainings').upsert(row, { onConflict:'id' })
+    .then(function(res){ if(res.error) throw res.error; })
+    /* replace the paper wholesale — an edit may add, remove or reorder */
+    .then(function(){ return sb.from('training_questions').delete().eq('training_id', trainingId); })
+    .then(function(res){ if(res.error) throw res.error; })
+    .then(function(){
+      if(!questionRows.length) return null;
+      return sb.from('training_questions').insert(questionRows);
+    })
+    .then(function(res){ if(res && res.error) throw res.error; })
+    .then(function(){
+      if(!Object.keys(answerKey).length) return null;
+      return sb.rpc('admin_save_answer_key', {
+        p_training_id: trainingId,
+        p_answer_key: answerKey
+      });
+    })
+    .then(function(res){ if(res && res.error) throw res.error; })
+    .then(function(){
+      state.editing = null;
+      return reloadPortalData();
+    })
+    .then(function(){
+      toast(isNew ? 'ಹೊಸ ತರಬೇತಿ ಯಶಸ್ವಿಯಾಗಿ ಸೇರಿಸಲಾಗಿದೆ.' : 'ತರಬೇತಿ ಯಶಸ್ವಿಯಾಗಿ ಸಂಪಾದಿಸಲಾಗಿದೆ.', 'success');
+    })
+    .catch(function(err){
+      console.warn('[training] save failed', err && (err.message || err.code));
+      const text = dataErrorMessage(err);
+      if(msg){ msg.className = 'form-msg show error'; msg.textContent = text; }
+      toast(text, 'error');
+    });
 }
 
 /* ============================================================
@@ -2695,15 +3071,11 @@ function adminFeedback(){
 
 function adminCertificates(){
   const certs = DB.certificates.slice().sort((a,b) => new Date(b.issuedAt) - new Date(a.issuedAt));
-  /* A provisional number was minted by the student's browser because only
-     the admin can move the settings/portal counter. Flag them here so the
-     register shows which certificates still need a real serial. */
-  const provisional = certs.filter(c => c.provisional === true || isProvisionalCertNumber(c.number)).length;
+  /* Every serial is minted by submit_assessment from the server-side
+     register sequence, so no certificate is provisional. */
   const rows = certs.length ? certs.map(c =>
     '<tr>' +
-      '<td data-label="ಪ್ರಮಾಣಪತ್ರ ಸಂಖ್ಯೆ"><span class="td-name">' + esc(c.number) + '</span>' +
-        ((c.provisional === true || isProvisionalCertNumber(c.number))
-          ? ' <span class="badge grey">ತಾತ್ಕಾಲಿಕ / provisional</span>' : '') + '</td>' +
+      '<td data-label="ಪ್ರಮಾಣಪತ್ರ ಸಂಖ್ಯೆ"><span class="td-name">' + esc(c.number) + '</span></td>' +
       '<td data-label="ವಿದ್ಯಾರ್ಥಿ">' + esc(c.studentName) + '</td>' +
       '<td data-label="ತರಬೇತಿ">' + esc(trunc(c.trainingTitle, 28)) + '</td>' +
       '<td data-label="ಅಂಕಗಳು">' + c.marks + ' / ' + c.total + '</td>' +
@@ -2714,13 +3086,6 @@ function adminCertificates(){
 
   return '' +
   '<div class="page-head"><h2>ಪ್ರಮಾಣಪತ್ರ ದಾಖಲೆಗಳು</h2><div class="ph-sub">ನೀಡಲಾದ ಎಲ್ಲಾ ಪ್ರಮಾಣಪತ್ರಗಳ ದಾಖಲೆ</div></div>' +
-  (provisional
-    ? '<div class="card-soft" style="margin-bottom:14px;">' +
-        '<b>' + provisional + '</b> ಪ್ರಮಾಣಪತ್ರ(ಗಳು) ತಾತ್ಕಾಲಿಕ ಸಂಖ್ಯೆಯೊಂದಿಗೆ ಇವೆ — ' +
-        'these were numbered by the student\'s browser (DTI-BNG-…-PROV-…) because only an ' +
-        'administrator can advance the register counter. Re-issue them to give them a real serial.' +
-      '</div>'
-    : '') +
   '<div class="card"><div class="table-wrap"><table class="data">' +
     '<thead><tr><th>ಪ್ರಮಾಣಪತ್ರ ಸಂಖ್ಯೆ</th><th>ವಿದ್ಯಾರ್ಥಿ</th><th>ತರಬೇತಿ</th><th>ಅಂಕಗಳು</th><th>ಶೇಕಡಾವಾರು</th><th>ನೀಡಿದ ದಿನಾಂಕ</th></tr></thead>' +
     '<tbody>' + rows + '</tbody>' +
@@ -2729,7 +3094,7 @@ function adminCertificates(){
 
 function adminSettings(){
   return '' +
-  '<div class="page-head"><h2>ಸಂಯೋಜನೆಗಳು</h2><div class="ph-sub">ಪೋರ್ಟಲ್ ನಿರ್ವಹಣೆ ಮತ್ತು ಡೆಮೊ ಡೇಟಾ</div></div>' +
+  '<div class="page-head"><h2>ಸಂಯೋಜನೆಗಳು</h2><div class="ph-sub">ಪೋರ್ಟಲ್ ಮಾಹಿತಿ ಮತ್ತು ಡೇಟಾ ಸಾರಾಂಶ</div></div>' +
   '<div class="card" style="margin-bottom:18px;">' +
     '<h3>ಸಂಸ್ಥೆಯ ಮಾಹಿತಿ</h3>' +
     '<div class="card-soft" style="line-height:2;">' +
@@ -2744,23 +3109,37 @@ function adminSettings(){
       '<span class="badge blue">ತರಬೇತಿಗಳು: ' + DB.trainings.length + '</span>' +
       '<span class="badge blue">ಸಲ್ಲಿಕೆಗಳು: ' + DB.submissions.length + '</span>' +
       '<span class="badge gold">ಪ್ರಮಾಣಪತ್ರಗಳು: ' + DB.certificates.length + '</span>' +
-      '<span class="badge grey">ಡೆಮೊ ಬಳಕೆದಾರರು: ' + DB.users.length + '</span>' +
+      '<span class="badge grey">ಖಾತೆಗಳು: ' + (authIsAdmin() ? ACCOUNTS.list.length : 1) + '</span>' +
     '</div>' +
   '</div>' +
   '<div class="card">' +
-    '<h3>ಡೆಮೊ ಡೇಟಾ ಮರುಹೊಂದಿಸಿ</h3>' +
-    '<p class="muted small">ಇದು ಎಲ್ಲಾ ತರಬೇತಿಗಳು, ಸಲ್ಲಿಕೆಗಳು, ಪ್ರಮಾಣಪತ್ರಗಳು ಮತ್ತು ಪ್ರತಿಕ್ರಿಯೆಗಳನ್ನು ಅಳಿಸಿ ಆರಂಭಿಕ ಡೆಮೊ ಸ್ಥಿತಿಗೆ ಮರಳಿಸುತ್ತದೆ. ಈ ಕ್ರಿಯೆಯನ್ನು ರದ್ದು ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.</p>' +
-    '<button class="btn btn-danger" data-action="reset-data">ಡೆಮೊ ಡೇಟಾ ಮರುಹೊಂದಿಸಿ</button>' +
+    '<h3>ಡೇಟಾ ಸಂಗ್ರಹಣೆ</h3>' +
+    '<p class="muted small" style="line-height:1.9;">' +
+      'ಎಲ್ಲಾ ದಾಖಲೆಗಳು ಸುರಕ್ಷಿತ ಸರ್ವರ್‌ನಲ್ಲಿ (Supabase) ಸಂಗ್ರಹವಾಗುತ್ತವೆ — ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಅಲ್ಲ. ' +
+      'ಬ್ರೌಸರ್ ಡೇಟಾ ಅಳಿಸಿದರೂ ತರಬೇತಿಗಳು, ಫಲಿತಾಂಶಗಳು ಮತ್ತು ಪ್ರಮಾಣಪತ್ರಗಳು ಉಳಿಯುತ್ತವೆ. ' +
+      'ಪ್ರತಿ ಬಳಕೆದಾರರಿಗೆ ತಮ್ಮದೇ ಆದ ದಾಖಲೆಗಳು ಮಾತ್ರ ಕಾಣುತ್ತವೆ.' +
+    '</p>' +
   '</div>';
 }
 
 function trainingVisibility(id, patch){
   const t = getTraining(id);
   if(!t) return;
-  if('published' in patch) t.published = patch.published;
-  if('archived'  in patch) t.archived  = patch.archived;
-  saveDB(); render();
-  toast('ಸ್ಥಿತಿ ನವೀಕರಿಸಲಾಗಿದೆ.', 'success');
+  const row = {};
+  if('published' in patch) row.published = !!patch.published;
+  if('archived'  in patch) row.archived  = !!patch.archived;
+  if(!Object.keys(row).length) return;
+
+  sb.from('trainings').update(row).eq('id', id)
+    .then(function(res){
+      if(res.error) throw res.error;
+      toast('ಸ್ಥಿತಿ ನವೀಕರಿಸಲಾಗಿದೆ.', 'success');
+      return reloadPortalData();
+    })
+    .catch(function(err){
+      console.warn('[training] visibility failed', err && (err.message || err.code));
+      toast(dataErrorMessage(err), 'error');
+    });
 }
 
 /* ============================================================
@@ -2802,9 +3181,13 @@ function saveCertBg(dataUrl){
   catch(e){ toast('Background image could not be saved (storage limit). Try a smaller PNG.','error'); return false; }
 }
 function clearCertBg(){ try{ localStorage.removeItem(CERT_BG_KEY); }catch(e){} }
-/* The design is stored in this browser only, so the active design is
-   simply whatever the admin last saved here. */
+/* The authoritative design comes from certificate_design and is cached in
+   localStorage by loadCertificateDesign(); the in-memory copy wins when it
+   is present so a freshly saved design renders without a reload. */
 function getActiveCertDesign(){
+  if(certDesState.design){
+    return { design: certDesState.design, bg: certDesState.bg || loadCertBg() };
+  }
   return { design: loadCertDesign(), bg: loadCertBg() };
 }
 
@@ -3054,13 +3437,81 @@ function bindCertDesInputs(){
 }
 
 /* ---- Persist the designer (this browser only) ---- */
+/* Upload a pending data: URL into the private bucket and return its path.
+   The bucket policies only let an approved admin write (max 5 MB, png/jpeg). */
+function uploadCertBackground(dataUrl){
+  const blob = dataUrlToBlob(dataUrl);
+  if(blob.size > 5 * 1024 * 1024) return Promise.reject(new Error('image-too-large (max 5MB)'));
+  const ext = (blob.type || '').indexOf('jpeg') > -1 ? 'jpg' : 'png';
+  const path = 'backgrounds/certificate-' + Date.now().toString(36) + '.' + ext;
+  return sb.storage.from(CERT_BUCKET)
+    .upload(path, blob, { contentType: blob.type || 'image/png', upsert: false })
+    .then(function(res){
+      if(res && res.error) throw res.error;
+      return path;
+    });
+}
+
+/* Delete the previous background once a new one has replaced it. A failure
+   here is only a stray file in the bucket, never a broken certificate, so
+   it is logged and ignored. */
+function deleteCertBackground(path){
+  if(!path) return Promise.resolve();
+  return sb.storage.from(CERT_BUCKET).remove([path]).catch(function(err){
+    console.warn('[design] old background not removed', err && (err.message || err.code));
+  });
+}
+
 function persistCertDesign(){
   const design = certDesState.design;
   if(!design) return Promise.resolve(false);
-  const ok = saveCertDesign(design);
-  if(ok && certDesState.bg) saveCertBg(certDesState.bg);
-  if(ok) toast('Certificate design saved.', 'success');
-  return Promise.resolve(ok);
+
+  /* students only ever read the design; keep their preview local */
+  if(!authIsAdmin()){
+    const okLocal = saveCertDesign(design);
+    if(okLocal && certDesState.bg) saveCertBg(certDesState.bg);
+    return Promise.resolve(okLocal);
+  }
+
+  const bg = String(certDesState.bg || '');
+  const pendingUpload = bg.indexOf('data:') === 0;
+
+  toast('Saving certificate design…', 'info');
+
+  /* upload first so the row only ever points at a file that exists */
+  const upload = pendingUpload ? uploadCertBackground(bg) : Promise.resolve(null);
+
+  return upload.then(function(newPath){
+    let previousPath = '';
+    try{ previousPath = localStorage.getItem(CERT_BG_PATH_KEY) || ''; }catch(e){ previousPath = ''; }
+
+    const patch = {
+      use_custom: !!design.useCustom,
+      aspect: Number(design.aspect) || 1.414,
+      fields: design.fields || []
+    };
+    if(newPath) patch.background_path = newPath;
+
+    return sb.from('certificate_design').update(patch).eq('id', true)
+      .then(function(res){
+        if(res.error) throw res.error;
+        if(newPath){
+          saveCertBg(bg);
+          try{ localStorage.setItem(CERT_BG_PATH_KEY, newPath); }catch(e){}
+          if(previousPath && previousPath !== newPath) deleteCertBackground(previousPath);
+        }
+        saveCertDesign(design);
+        toast('Certificate design saved.', 'success');
+        return true;
+      });
+  }).catch(function(err){
+    console.warn('[design] save failed', err && (err.message || err.code));
+    let text = 'Certificate design could not be saved.' + (err && err.message ? ' (' + err.message + ')' : '');
+    if(String((err && err.message) || '') === 'not-admin') text = 'Only the administrator can save the certificate design.';
+    if(String((err && err.message) || '').indexOf('image-too-large') > -1) text = 'Image is too large (max 5MB).';
+    toast(text, 'error');
+    return false;
+  });
 }
 
 function resetCertDesign(){
@@ -3069,8 +3520,58 @@ function resetCertDesign(){
   certDesState.selectedId = null;
   saveCertDesign(certDesState.design);
   clearCertBg();
-  toast('Reset to default certificate.','success');
-  return Promise.resolve(true);
+
+  if(!authIsAdmin()) return Promise.resolve(true);
+
+  let previousPath = '';
+  try{ previousPath = localStorage.getItem(CERT_BG_PATH_KEY) || ''; }catch(e){ previousPath = ''; }
+
+  return sb.from('certificate_design')
+    .update({ use_custom:false, aspect:1.414, fields:[], background_path:'' })
+    .eq('id', true)
+    .then(function(res){
+      if(res.error) throw res.error;
+      try{ localStorage.removeItem(CERT_BG_PATH_KEY); }catch(e){}
+      if(previousPath) deleteCertBackground(previousPath);
+      toast('Reset to default certificate.','success');
+      return true;
+    })
+    .catch(function(err){
+      console.warn('[design] reset failed', err && (err.message || err.code));
+      toast('Reset locally — the server update failed. (' + ((err && err.message) || 'error') + ')', 'error');
+      return false;
+    });
+}
+
+/* Removing just the background keeps the field layout. */
+function removeCertBackground(){
+  certDesState.bg = '';
+  certDesState.design.useCustom = false;
+  saveCertDesign(certDesState.design);
+  clearCertBg();
+
+  let previousPath = '';
+  try{ previousPath = localStorage.getItem(CERT_BG_PATH_KEY) || ''; }catch(e){ previousPath = ''; }
+
+  if(!authIsAdmin()){ render(); toast('Background removed.','success'); return Promise.resolve(true); }
+
+  return sb.from('certificate_design')
+    .update({ background_path:'', use_custom:false })
+    .eq('id', true)
+    .then(function(res){
+      if(res.error) throw res.error;
+      try{ localStorage.removeItem(CERT_BG_PATH_KEY); }catch(e){}
+      if(previousPath) deleteCertBackground(previousPath);
+      render();
+      toast('Background removed.','success');
+      return true;
+    })
+    .catch(function(err){
+      console.warn('[design] background removal failed', err && (err.message || err.code));
+      render();
+      toast('Background removed locally — the server update failed.', 'error');
+      return false;
+    });
 }
 
 /* ---- Student custom certificate renderer ---- */
@@ -3111,12 +3612,13 @@ function setPrintPageOrientation(aspect){
 /* ============================================================
    SECTION L.2 — ADMIN: STUDENT ACCOUNTS
    ------------------------------------------------------------
-   Lists the local profiles on this browser and lets the admin
-   approve, reject, re-enable or disable one.
+   Lists profiles from the database and lets the admin approve,
+   reject, re-enable or disable one.
 
-   Note: these buttons are convenience only. Everything is stored
-   in this browser, so anyone with devtools can edit it. A real
-   backend will enforce this properly.
+   These buttons are NOT the security boundary: status changes run
+   through admin_set_profile_status, which re-checks the caller's
+   admin role on the server. A student editing the page can call
+   nothing extra.
    ============================================================ */
 
 const ACCOUNTS = {
@@ -3129,33 +3631,50 @@ const ACCOUNTS = {
 
 function loadStudentAccounts(force){
   if(!authIsAdmin()) return Promise.resolve([]);
+  if(ACCOUNTS.loading) return Promise.resolve(ACCOUNTS.list);
   if(ACCOUNTS.loaded && !force) return Promise.resolve(ACCOUNTS.list);
 
-  ACCOUNTS.list = DB.users.map(function(u){
-    return {
-      _id: u.id,
-      officialName: u.name || '',
-      email: u.email || '',
-      kgid: u.kgid || '',
-      designation: u.designation || '',
-      department: u.department || '',
-      status: u.status || 'approved',
-      role: u.role || 'student'
-    };
-  }).sort(function(a, b){
-    const sa = String(a.status || 'pending'), sb = String(b.status || 'pending');
-    if(sa !== sb) return sa === 'pending' ? -1 : (sb === 'pending' ? 1 : sa.localeCompare(sb));
-    return String(a.officialName || '').localeCompare(String(b.officialName || ''));
-  });
-  ACCOUNTS.loaded = true;
+  ACCOUNTS.loading = true;
   ACCOUNTS.error = '';
-  return Promise.resolve(ACCOUNTS.list);
+  return sb.from('profiles').select('*').order('created_at', { ascending:false })
+    .then(unwrap)
+    .then(function(rows){
+      const list = (rows || []).map(profileRowToAccount).sort(function(a, b){
+        const sa = String(a.status || 'pending'), sbv = String(b.status || 'pending');
+        if(sa !== sbv) return sa === 'pending' ? -1 : (sbv === 'pending' ? 1 : sa.localeCompare(sbv));
+        return String(a.officialName || '').localeCompare(String(b.officialName || ''));
+      });
+      ACCOUNTS.list = list;
+      ACCOUNTS.loaded = true;
+      ACCOUNTS.loading = false;
+      return list;
+    })
+    .catch(function(err){
+      console.warn('[accounts] load failed', err && (err.message || err.code));
+      ACCOUNTS.loading = false;
+      ACCOUNTS.loaded = true;
+      ACCOUNTS.error = dataErrorMessage(err);
+      return ACCOUNTS.list;
+    });
 }
 
 function refreshStudentAccounts(){
   ACCOUNTS.loaded = false;
   return loadStudentAccounts(true).then(function(){
     render();
+  });
+}
+
+/* status changes go through the admin-only RPC — the browser has no
+   INSERT/UPDATE grant on profiles beyond its own four columns */
+function setStudentStatus(profileId, status){
+  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
+  return sb.rpc('admin_set_profile_status', {
+    p_profile_id: profileId,
+    p_status: status
+  }).then(function(res){
+    if(res.error) throw res.error;
+    return true;
   });
 }
 
@@ -3173,9 +3692,8 @@ function accountAction(uid, action){
       toast('ಸ್ಥಿತಿ ನವೀಕರಿಸಲಾಗಿದೆ: ' + labels[2], 'success');
       return refreshStudentAccounts();
     }).catch(function(err){
-      const denied = err && err.code === 'permission-denied';
-      toast(denied ? 'ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ.' : 'ಸ್ಥಿತಿ ನವೀಕರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.', 'error');
-      console.warn('[accounts] update failed', err && err.code);
+      console.warn('[accounts] update failed', err && (err.message || err.code));
+      toast(dataErrorMessage(err), 'error');
     });
   }, action === 'reject' || action === 'disable');
 }
@@ -3273,7 +3791,7 @@ function adminStudentAccounts(){
       '<thead><tr><th>ಅಧಿಕೃತ ಹೆಸರು</th><th>ಕೆ.ಜಿ.ಐ.ಡಿ</th><th>ಇಮೇಲ್</th><th>ಹುದ್ದೆ</th><th>ಸ್ಥಿತಿ</th><th></th></tr></thead>' +
       '<tbody>' + body + '</tbody>' +
     '</table></div>' +
-    '<p class="note" style="margin-top:12px;">ಖಾತೆ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದರೆ ಅಥವಾ ತಿರಸ್ಕರಿಸಿದರೆ ಆ ವ್ಯಕ್ತಿಗೆ ಮತ್ತೆ ಪ್ರವೇಶ ಸಿಗುವುದಿಲ್ಲ. ಖಾತೆಗಳು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಇರುತ್ತವೆ.</p>' +
+    '<p class="note" style="margin-top:12px;">ಖಾತೆ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದರೆ ಅಥವಾ ತಿರಸ್ಕರಿಸಿದರೆ ಆ ವ್ಯಕ್ತಿಗೆ ತಕ್ಷಣ ಪ್ರವೇಶ ಸಿಗುವುದಿಲ್ಲ. ಖಾತೆಗಳು ಸರ್ವರ್‌ನಲ್ಲಿ ಸಂಗ್ರಹವಾಗಿರುತ್ತವೆ.</p>' +
   '</div>';
 }
 
@@ -3439,176 +3957,6 @@ function exportBackupCSV(which){
 
 /* ---------- import ---------- */
 
-function validateBackup(data){
-  const errs = [];
-  if(!data || typeof data !== 'object') return ['ಫೈಲ್ ಓದಲು ಸಾಧ್ಯವಿಲ್ಲ (JSON ಅಲ್ಲ).'];
-  if(data._format !== 'dti-bengaluru-backup') errs.push('ಇದು ಈ ಪೋರ್ಟಲ್‌ನ ಬ್ಯಾಕಪ್ ಫೈಲ್ ಅಲ್ಲ.');
-  if(!data._version || data._version > BACKUP_VERSION){
-    errs.push('ಬ್ಯಾಕಪ್ ಆವೃತ್ತಿ ಹೊಂದಿಕೆಯಾಗುತ್ತಿಲ್ಲ (ಫೈಲ್: ' + (data._version || '?') + ').');
-  }
-  ['students','trainings','submissions','certificates'].forEach(function(k){
-    if(data[k] !== undefined && !Array.isArray(data[k])) errs.push(k + ' ಸರಿಯಾದ ಪಟ್ಟಿಯಲ್ಲ.');
-  });
-  if(!Array.isArray(data.trainings) || data.trainings.length === 0){
-    errs.push('ಬ್ಯಾಕಪ್‌ನಲ್ಲಿ ಯಾವುದೇ ತರಬೇತಿಗಳಿಲ್ಲ — ಇದು ತಪ್ಪಾದ ಫೈಲ್ ಇರಬಹುದು.');
-  }
-  (data.students || []).forEach(function(s, i){
-    if(!s._id) errs.push('ವಿದ್ಯಾರ್ಥಿ #' + (i+1) + ': id ಇಲ್ಲ.');
-    if(!s.officialName) errs.push('ವಿದ್ಯಾರ್ಥಿ #' + (i+1) + ': ಅಧಿಕೃತ ಹೆಸರು ಇಲ್ಲ.');
-  });
-  (data.trainings || []).forEach(function(t, i){
-    if(!t._id) errs.push('ತರಬೇತಿ #' + (i+1) + ': id ಇಲ್ಲ.');
-    if(!t.title) errs.push('ತರಬೇತಿ #' + (i+1) + ': ಶೀರ್ಷಿಕೆ ಇಲ್ಲ.');
-  });
-  return errs;
-}
-
-function summarizeBackup(data){
-  return {
-    students: (data.students || []).length,
-    trainings: (data.trainings || []).length,
-    submissions: (data.submissions || []).length,
-    certificates: (data.certificates || []).length,
-    design: data.certificateDesign ? 'ಹೌದು' : 'ಇಲ್ಲ',
-    exportedAt: data.exportedAt || '—',
-    exportedBy: data.exportedBy || '—'
-  };
-}
-
-function restoreBackup(data){
-  if(!authIsAdmin()) return Promise.reject(new Error('not-admin'));
-
-  let done = 0;
-  const upsert = function(list, item, id){
-    const i = list.findIndex(function(x){ return x.id === id; });
-    if(i > -1) list[i] = Object.assign({}, list[i], item);
-    else list.push(item);
-    done++;
-  };
-
-  (data.students || []).forEach(function(st){
-    if(!st._id) return;
-    upsert(DB.users, {
-      id: st._id,
-      name: st.officialName || st.name || 'ಬಳಕೆದಾರ',
-      email: st.email || '',
-      kgid: st.kgid || '',
-      designation: st.designation || '',
-      department: st.department || '',
-      role: st.role === 'admin' ? 'admin' : 'student',
-      status: st.status || 'approved'
-    }, st._id);
-  });
-
-  (data.trainings || []).forEach(function(t){
-    const id = t._id || t.id;
-    if(!id) return;
-    const clean = Object.assign({}, t);
-    delete clean._id;
-    clean.id = id;
-    if(!Array.isArray(clean.questions)) clean.questions = [];
-    if(!clean.answerKey) clean.answerKey = {};
-    if(!clean.feedback) clean.feedback = { day:'', sessions:[], questions:[] };
-    upsert(DB.trainings, clean, id);
-  });
-
-  (data.submissions || []).forEach(function(sb){
-    const id = sb._id || sb.id;
-    if(!id) return;
-    const clean = Object.assign({}, sb);
-    delete clean._id;
-    clean.id = id;
-    /* a backup taken from the old server build carried the Firestore
-       field names — reshape those so the screens can read them */
-    if(!clean.result && clean.marksObtained !== undefined){
-      clean.result = {
-        marks: Number(clean.marksObtained) || 0,
-        total: Number(clean.totalMarks) || 0,
-        pct: Number(clean.percentage) || 0,
-        passed: !!clean.passStatus,
-        correct: Number(clean.correctCount) || 0,
-        wrong: Number(clean.wrongCount) || 0,
-        passing: Number(clean.passingPercent) || 70
-      };
-    }
-    if(!clean.details){
-      clean.details = {
-        name: clean.officialNameSnapshot || '',
-        email: clean.emailSnapshot || '',
-        kgid: clean.kgidSnapshot || ''
-      };
-    }
-    if(!clean.userId && clean.studentUid) clean.userId = clean.studentUid;
-    upsert(DB.submissions, clean, id);
-  });
-
-  (data.certificates || []).forEach(function(c){
-    const id = c._id || c.id;
-    if(!id) return;
-    const clean = Object.assign({}, c);
-    delete clean._id;
-    clean.id = id;
-    upsert(DB.certificates, clean, id);
-  });
-
-  if(data.certificateDesign) saveCertDesign(data.certificateDesign);
-  if(data.settings) DB.settings = Object.assign({ defaultPassing:70 }, data.settings);
-
-  saveDB();
-  return Promise.resolve(done);
-}
-
-function handleBackupFile(file){
-  if(!file){ return; }
-  if(file.size > 20 * 1024 * 1024){
-    toast('ಫೈಲ್ ತುಂಬಾ ದೊಡ್ಡದಾಗಿದೆ (ಗರಿಷ್ಠ 20MB).', 'error');
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = function(e){
-    let data;
-    try{ data = JSON.parse(e.target.result); }
-    catch(err){ toast('ಫೈಲ್ ಸರಿಯಾದ JSON ಅಲ್ಲ.', 'error'); return; }
-
-    const errs = validateBackup(data);
-    if(errs.length){
-      openModal(
-        '<h3>ಬ್ಯಾಕಪ್ ಮಾನ್ಯವಾಗಿಲ್ಲ</h3>' +
-        '<div class="form-msg show error" style="margin-bottom:14px;">ಈ ಫೈಲ್ ಅನ್ನು ಆಮದು ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.</div>' +
-        '<ul class="small" style="line-height:1.9;">' + errs.slice(0,12).map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
-        '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">ಮುಚ್ಚಿ</button></div>'
-      );
-      return;
-    }
-
-    const s = summarizeBackup(data);
-    openModal(
-      '<h3>ಬ್ಯಾಕಪ್ ಮರುಸ್ಥಾಪಿಸುವುದೇ?</h3>' +
-      '<p class="muted small">ಈ ಫೈಲ್‌ನಿಂದ ಡೇಟಾವನ್ನು ಬರೆಯಲಾಗುತ್ತದೆ. ಇರುವ ದಾಖಲೆಗಳು ಅಳಿಸುವುದಿಲ್ಲ — ಅದೇ ID ಗಳಿದ್ದರೆ ನವೀಕರಿಸಲಾಗುತ್ತದೆ.</p>' +
-      '<div class="card-soft small" style="line-height:2;margin:14px 0;">' +
-        '<div><b>ರಫ್ತು ಮಾಡಿದ:</b> ' + esc(s.exportedAt) + '</div>' +
-        '<div><b>ರಫ್ತು ಮಾಡಿದವರು:</b> ' + esc(s.exportedBy) + '</div>' +
-        '<div><b>ವಿದ್ಯಾರ್ಥಿಗಳು:</b> ' + s.students + '</div>' +
-        '<div><b>ತರಬೇತಿಗಳು:</b> ' + s.trainings + '</div>' +
-        '<div><b>ಸಲ್ಲಿಕೆಗಳು:</b> ' + s.submissions + '</div>' +
-        '<div><b>ಪ್ರಮಾಣಪತ್ರಗಳು:</b> ' + s.certificates + '</div>' +
-        '<div><b>ಸರ್ಟಿಫಿಕೇಟ್ ವಿನ್ಯಾಸ:</b> ' + esc(s.design) + '</div>' +
-      '</div>' +
-      '<div class="form-msg show error" style="margin-bottom:0;">ಎಲ್ಲಾ ದಾಖಲೆಗಳು ನಿಮ್ಮ ಖಾತೆಯಿಂದ ಮತ್ತೆ ಬರೆಯಲ್ಪಡುತ್ತವೆ. ಮುಂದುವರಿಯುವ ಮೊದಲು ಪ್ರಸ್ತುತ ಡೇಟಾದ ಬ್ಯಾಕಪ್ ತೆಗೆದುಕೊಳ್ಳಿ.</div>' +
-      '<div class="modal-actions">' +
-        '<button class="btn btn-ghost" data-action="modal-close">ರದ್ದು ಮಾಡಿ</button>' +
-        '<button class="btn btn-danger" data-action="backup-restore-confirm">ಸರಿ, ಮರುಸ್ಥಾಪಿಸಿ</button>' +
-      '</div>',
-      true
-    );
-    pendingBackup = data;
-  };
-  reader.onerror = function(){ toast('ಫೈಲ್ ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.', 'error'); };
-  reader.readAsText(file);
-}
-
-let pendingBackup = null;
-
 /* ---------- the view ---------- */
 
 function adminBackup(){
@@ -3637,23 +3985,20 @@ function adminBackup(){
 
   '<div class="card" style="margin-bottom:18px;">' +
     '<h3>ಪ್ರಮಾಣಪತ್ರ ಹಿನ್ನೆಲೆ ಚಿತ್ರ</h3>' +
-    '<p class="muted small">ಸಂರಕ್ಷಣೆಗಾಗಿ ಪ್ರಸ್ತುತ ಹಿನ್ನೆಲೆ ಚಿತ್ರವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ. ಚಿತ್ರ ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉಳಿದಿರುತ್ತದೆ.</p>' +
+    '<p class="muted small">ಸಂರಕ್ಷಣೆಗಾಗಿ ಪ್ರಸ್ತುತ ಹಿನ್ನೆಲೆ ಚಿತ್ರವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ. ಚಿತ್ರ ಖಾಸಗಿ ಸ್ಟೋರೇಜ್ ಬಕೆಟ್‌ನಲ್ಲಿ (certificate-assets) ಇರುತ್ತದೆ.</p>' +
     '<div class="row">' +
       '<button class="btn btn-ghost" data-action="backup-cert-image">ಹಿನ್ನೆಲೆ ಚಿತ್ರ ಡೌನ್‌ಲೋಡ್</button>' +
     '</div>' +
   '</div>' +
 
   '<div class="card">' +
-    '<h3>ಬ್ಯಾಕಪ್ ಮರುಸ್ಥಾಪಿಸಿ</h3>' +
-    '<p class="muted small">JSON ಬ್ಯಾಕಪ್ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ. ಆಮದು ಮಾಡುವ ಮೊದಲು ಫೈಲ್ ಪರಿಶೀಲಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಸಾರಾಂಶ ತೋರಿಸಲಾಗುತ್ತದೆ.</p>' +
-    '<input type="file" accept="application/json,.json" id="backupFileInput" style="display:none">' +
-    '<div class="form-msg show error" style="background:#FFFBF0;border-color:#EBD9AE;color:#7A5E1E;">' +
-      'ಮರುಸ್ಥಾಪನೆಯು ಇರುವ ದಾಖಲೆಗಳನ್ನು ಅಳಿಸುವುದಿಲ್ಲ, ಆದರೆ ಅದೇ ID ಗಳನ್ನು ಮೇಲ್ಬರಹ ಮಾಡುತ್ತದೆ. ಮೊದಲು ಪ್ರಸ್ತುತ ಬ್ಯಾಕಪ್ ತೆಗೆದುಕೊಳ್ಳಿ.' +
-    '</div>' +
-    '<div class="row">' +
-      '<button class="btn btn-danger" data-action="backup-import">ಬ್ಯಾಕಪ್ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ</button>' +
-    '</div>' +
-    '<p class="note" style="margin-top:14px;">ಡೇಟಾ ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಇರುವುದರಿಂದ, ನಿಯಮಿತವಾಗಿ JSON ಬ್ಯಾಕಪ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಇಟ್ಟುಕೊಳ್ಳಿ — ಬ್ರೌಸರ್ ಡೇಟಾ ಅಳಿಸಿದರೆ ಅದೇ ಫೈಲ್‌ನಿಂದ ಮರುಸ್ಥಾಪಿಸಬಹುದು.</p>' +
+    '<h3>ಸರ್ವರ್ ಬ್ಯಾಕಪ್</h3>' +
+    '<p class="muted small" style="line-height:1.9;">' +
+      'ಡೇಟಾವು ಈಗ ಸರ್ವರ್‌ನಲ್ಲಿ (Supabase) ಇರುತ್ತದೆ, ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಅಲ್ಲ. ' +
+      'ಮರುಸ್ಥಾಪನೆ ಮತ್ತು ದೈನಂದಿನ ಬ್ಯಾಕಪ್‌ಗಳನ್ನು Supabase ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ನಿರ್ವಹಿಸುತ್ತದೆ. ' +
+      'ಇಲ್ಲಿ ರಫ್ತು ಮಾಡುವ JSON/CSV ಫೈಲ್‌ಗಳು ದಾಖಲೆಗಳ ಪ್ರತಿಗಳು — ಸಂರಕ್ಷಣೆಗಾಗಿ ಬಳಸಿ.' +
+    '</p>' +
+    '<p class="note" style="margin-top:14px;">ಫೈಲ್ ಆಮದು (ಮರುಸ್ಥಾಪನೆ) ಈ ಆವೃತ್ತಿಯಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ.</p>' +
   '</div>';
 }
 
@@ -3687,22 +4032,24 @@ function viewSubmissionModal(id){
     }).join('');
   })();
 
+  /* The answer key stays on the server (it is never sent to a browser), so
+     this modal can only show what the student chose plus the totals the
+     marking RPC returned — not a per-question right/wrong tick. */
   const answerRows = (() => {
     if(!t) return '<p class="muted small">ತರಬೇತಿ ಲಭ್ಯವಿಲ್ಲ.</p>';
     return t.questions.map((q, i) => {
       const given = s.answers ? s.answers[q.id] : undefined;
-      const key = t.answerKey ? t.answerKey[q.id] : undefined;
-      const isCorrect = given !== undefined && Number(given) === Number(key);
       return '<div style="padding:10px 0;border-bottom:1px solid var(--line-soft);">' +
         '<div class="small strong" style="color:var(--darkblue);">' + (i+1) + '. ' + esc(q.text) + '</div>' +
-        '<div class="small" style="margin-top:5px;">' +
-          '<span style="color:' + (isCorrect ? 'var(--green)' : 'var(--red)') + ';">' +
-            (isCorrect ? '✓' : '✕') + ' ಆಯ್ಕೆ: ' + esc(given !== undefined ? q.options[given] : '—') +
-          '</span>' +
+        '<div class="small" style="margin-top:5px;">ಆಯ್ಕೆ: ' +
+          esc(given !== undefined && q.options[given] !== undefined ? q.options[given] : '—') +
         '</div>' +
-        '<div class="tiny muted" style="margin-top:2px;">ಸರಿಯಾದ ಉತ್ತರ: ' + esc(key !== undefined ? q.options[key] : '—') + '</div>' +
       '</div>';
-    }).join('');
+    }).join('') +
+    '<p class="tiny muted" style="margin-top:8px;line-height:1.8;">' +
+      'ಸರಿಯಾದ ಉತ್ತರ ಕೀ ಸರ್ವರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಇರುತ್ತದೆ (ಬ್ರೌಸರ್‌ಗೆ ಕಳುಹಿಸುವುದಿಲ್ಲ), ಆದ್ದರಿಂದ ಪ್ರತಿ ಪ್ರಶ್ನೆಯ ಸರಿ/ತಪ್ಪು ಇಲ್ಲಿ ತೋರಿಸುವುದಿಲ್ಲ. ' +
+      'ಒಟ್ಟು ಅಂಕಗಳು ಮೇಲೆ ನಮೂದಿಸಲಾಗಿದೆ.' +
+    '</p>';
   })();
 
   openModal(
@@ -3753,6 +4100,18 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'logout': logout(); break;
+    case 'google-signin': signInGoogle(); break;
+    case 'sign-out': signOut(); break;
+    case 'retry-profile': {
+      if(AUTH.user && sb){
+        AUTH.gate = 'loading';
+        render();
+        loadProfileAndPortal();
+      }else{
+        signOut();
+      }
+      break;
+    }
 
     case 'open-sidebar': {
       const sb = document.getElementById('sidebar');
@@ -3899,10 +4258,16 @@ document.addEventListener('click', function(e){
         'ತರಬೇತಿ ಅಳಿಸುವುದೇ?',
         '“' + t.title + '” ತರಬೇತಿಯನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ. ಇದಕ್ಕೆ ಸಂಬಂಧಿಸಿದ ಸಲ್ಲಿಕೆಗಳು ಮತ್ತು ಪ್ರಮಾಣಪತ್ರ ದಾಖಲೆಗಳು ಉಳಿಯುತ್ತವೆ.',
         function(){
-          DB.trainings = DB.trainings.filter(x => x.id !== id);
-          saveDB();
-          render();
-          toast('ತರಬೇತಿ ಅಳಿಸಲಾಗಿದೆ.','success');
+          sb.from('trainings').delete().eq('id', id)
+            .then(function(res){
+              if(res.error) throw res.error;
+              toast('ತರಬೇತಿ ಅಳಿಸಲಾಗಿದೆ.','success');
+              return reloadPortalData();
+            })
+            .catch(function(err){
+              console.warn('[training] delete failed', err && (err.message || err.code));
+              toast(dataErrorMessage(err), 'error');
+            });
         },
         true
       );
@@ -4023,7 +4388,10 @@ document.addEventListener('click', function(e){
             ).join('') +
           '</div>' +
         '</div>' +
-        '<p class="tiny muted">ಇದು ಶಿಬಿರಾರ್ಥಿಗೆ ಕಾಣುವ ರೀತಿ. ಸರಿಯಾದ ಉತ್ತರವನ್ನು ಗುರುತಿಸಲಾಗಿದೆ (ವಿದ್ಯಾರ್ಥಿಗೆ ಕಾಣುವುದಿಲ್ಲ).</p>' +
+        '<p class="tiny muted">ಇದು ಶಿಬಿರಾರ್ಥಿಗೆ ಕಾಣುವ ರೀತಿ. ಸರಿಯಾದ ಉತ್ತರವನ್ನು ಗುರುತಿಸಲಾಗಿದೆ (ವಿದ್ಯಾರ್ಥಿಗೆ ಕಾಣುವುದಿಲ್ಲ).' +
+          (q.correct === null || q.correct === undefined
+            ? ' ಈ ಪ್ರಶ್ನೆಯ ಸರಿಯಾದ ಉತ್ತರ ಈಗಾಗಲೇ ಸರ್ವರ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಿದ್ದರೆ ಅದು ಈ ಪರದೆಯಲ್ಲಿ ಕಾಣುವುದಿಲ್ಲ.'
+            : '') + '</p>' +
         '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">ಮುಚ್ಚಿ</button></div>'
       );
       break;
@@ -4034,21 +4402,22 @@ document.addEventListener('click', function(e){
     case 'export-csv': exportCSV(); break;
     case 'reset-data': {
       confirmDialog(
-        'ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸುವುದೇ?',
-        'ಇದು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿರುವ ಎಲ್ಲವನ್ನೂ — ಖಾತೆಗಳು, ತರಬೇತಿಗಳು, ಸಲ್ಲಿಕೆಗಳು, ಪ್ರಮಾಣಪತ್ರಗಳು ಮತ್ತು ಡ್ರಾಫ್ಟ್‌ಗಳು — ಅಳಿಸುತ್ತದೆ. ಈ ಕ್ರಿಯೆಯನ್ನು ರದ್ದು ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+        'ಈ ಬ್ರೌಸರ್‌ನ ಕ್ಯಾಶೆ ಅಳಿಸುವುದೇ?',
+        'ಇದು ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಉಳಿಸಿದ ಕರಡು ಉತ್ತರಗಳು, ಪ್ರಮಾಣಪತ್ರ ಹಿನ್ನೆಲೆ ಚಿತ್ರ ಮತ್ತು ಸ್ಥಳೀಯ ನಕಲನ್ನು ಮಾತ್ರ ಅಳಿಸುತ್ತದೆ. ' +
+        'ಸರ್ವರ್‌ನಲ್ಲಿರುವ ತರಬೇತಿಗಳು, ಫಲಿತಾಂಶಗಳು ಮತ್ತು ಪ್ರಮಾಣಪತ್ರಗಳು ಅಳಿಸುವುದಿಲ್ಲ.',
         function(){
           try{
-            Object.keys(localStorage).forEach(k => {
-              if(k === STORE_KEY || k.indexOf(DRAFT_PREFIX) === 0) localStorage.removeItem(k);
+            Object.keys(localStorage).forEach(function(k){
+              if(k === STORE_KEY || k === CERT_DESIGN_KEY || k === CERT_BG_KEY ||
+                 k === CERT_BG_PATH_KEY || k.indexOf(DRAFT_PREFIX) === 0){
+                localStorage.removeItem(k);
+              }
             });
           }catch(e){}
-          DB = emptyDB();
           state.editing = null;
           state.adminSection = 'overview';
-          /* fresh start: built-in training, no accounts, no records */
-          seedLocalData();
-          render();
-          toast('ಎಲ್ಲಾ ಡೇಟಾ ಅಳಿಸಲಾಗಿದೆ.','success');
+          reloadPortalData();
+          toast('ಸ್ಥಳೀಯ ಕ್ಯಾಶೆ ಅಳಿಸಲಾಗಿದೆ.','success');
         },
         true
       );
@@ -4058,25 +4427,6 @@ document.addEventListener('click', function(e){
     /* ---------- data backup ---------- */
     case 'backup-export-json': exportBackupJSON(); break;
     case 'backup-csv': exportBackupCSV(el.getAttribute('data-what')); break;
-    case 'backup-import': {
-      const inp = document.getElementById('backupFileInput');
-      if(inp) inp.click();
-      break;
-    }
-    case 'backup-restore-confirm': {
-      const data = pendingBackup;
-      closeModal();
-      if(!data) break;
-      toast('ಮರುಸ್ಥಾಪಿಸಲಾಗುತ್ತಿದೆ…', 'info');
-      restoreBackup(data).then(function(n){
-        pendingBackup = null;
-        toast(n + ' ದಾಖಲೆಗಳು ಮರುಸ್ಥಾಪಿಸಲಾಗಿದೆ.', 'success');
-        return reloadPortalData();
-      }).catch(function(err){
-        toast(err && err.code === 'permission-denied' ? 'ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ.' : 'ಮರುಸ್ಥಾಪನೆ ವಿಫಲವಾಯಿತು.', 'error');
-      });
-      break;
-    }
     case 'backup-cert-image': {
       const cfg = getActiveCertDesign();
       if(!cfg.bg){ toast('ಯಾವುದೇ ಪ್ರಮಾಣಪತ್ರ ಹಿನ್ನೆಲೆ ಚಿತ್ರ ಸಂರಕ್ಷಿಸಿಲ್ಲ.', 'info'); break; }
@@ -4115,14 +4465,7 @@ document.addEventListener('click', function(e){
       confirmDialog(
         'Remove background image?',
         'The uploaded certificate image will be cleared. Student records and other data are not affected.',
-        function(){
-          clearCertBg();
-          certDesState.bg = '';
-          certDesState.design.useCustom = false;
-          saveCertDesign(certDesState.design);
-          render();
-          toast('Background removed.','success');
-        },
+        function(){ removeCertBackground(); },
         true
       );
       break;
@@ -4263,19 +4606,30 @@ document.addEventListener('change', function(e){
     }
     const reader = new FileReader();
     reader.onload = function(ev){
-      const dataUrl = ev.target.result;
+      const dataUrl = String(ev.target.result || '');
+      /* Preview immediately. The file is only buffered here — "Save & Apply"
+         uploads it to the private bucket and writes certificate_design, so a
+         closed tab never leaves a half-saved design behind. */
+      certDesState.bg = dataUrl;
+      if(!certDesState.design) certDesState.design = defaultCertDesign();
+      render();
+      toast('Image ready — press "Save & Apply" to upload it.', 'info');
+
+      /* the aspect ratio is a nicety: if the size cannot be read, the
+         current ratio is kept and the upload still works */
       const img = new Image();
       img.onload = function(){
-        if(!saveCertBg(dataUrl)) return;
-        certDesState.bg = dataUrl;
-        if(!certDesState.design) certDesState.design = defaultCertDesign();
-        certDesState.design.aspect = +(img.naturalWidth / img.naturalHeight).toFixed(3);
-        render();
-        toast('Background uploaded.','success');
+        if(certDesState.bg !== dataUrl) return;
+        const ratio = img.naturalWidth / img.naturalHeight;
+        if(isFinite(ratio) && ratio > 0){
+          certDesState.design.aspect = +ratio.toFixed(3);
+          render();
+        }
       };
-      img.onerror = function(){ toast('Could not load image.','error'); };
+      img.onerror = function(){ /* keep the current aspect */ };
       img.src = dataUrl;
     };
+    reader.onerror = function(){ toast('Could not read that file.','error'); };
     reader.readAsDataURL(file);
   }
 });
@@ -4287,8 +4641,8 @@ document.addEventListener('submit', function(e){
   e.preventDefault();
   const kind = form.getAttribute('data-form');
 
-  if(kind === 'local-signin'){
-    signInLocal(form);
+  if(kind === 'profile'){
+    saveProfileDetails(form);
     return;
   }
 
@@ -4324,9 +4678,12 @@ document.addEventListener('change', function(e){
 
 /* ---------- Init ---------- */
 function init(){
-  loadDB();          /* the whole database lives in localStorage */
-  seedLocalData();   /* install the built-in training on a fresh browser */
-  render();
+  /* Nothing is stored locally any more except the in-progress draft and a
+     cached certificate background. bootAuth() restores the Supabase session
+     (the OAuth redirect lands here), then the gate decides what to draw. */
+  DB = emptyDB();
+  render();          /* shows the loading card straight away */
+  bootAuth();
 }
 init();
 
