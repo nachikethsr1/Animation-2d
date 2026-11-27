@@ -559,6 +559,9 @@ body.modal-open{overflow:hidden;}
   flex:none;width:9px;height:9px;border-radius:50%;margin-top:6px;background:var(--gold);
 }
 .gate-state.pending .gs-dot{background:#C79A2E;}
+/* important notice the admin writes above the feedback form */
+.notice-card{border-left:4px solid var(--gold);background:#FFFBF0;}
+.notice-body{white-space:pre-line;line-height:1.8;font-size:14.5px;color:var(--darkblue);}
 .gate-state.rejected .gs-dot{background:var(--red);}
 .gate-state.disabled .gs-dot{background:var(--grey);}
 @media (max-width:520px){
@@ -1449,6 +1452,7 @@ function trainingFromRow(row, questions){
     }),
     feedback: {
       day: row.feedback_day || '',
+      notice: row.feedback_notice || '',
       sessions: Array.isArray(row.feedback_sessions) ? row.feedback_sessions : [],
       questions: Array.isArray(row.feedback_questions) ? row.feedback_questions : []
     }
@@ -2272,6 +2276,17 @@ function stageDetails(t){
 function stageFeedback(t){
   const fb = t.feedback || { sessions:[], questions:[] };
   const d = state.draft.feedback || { ratings:{}, answers:{} };
+  /* the administrator's notice goes above everything else */
+  const noticeText = String(fb.notice || '').trim();
+  const noticeHtml = noticeText
+    ? '<div class="card notice-card">' +
+        '<div class="section-head">' +
+          '<span class="sh-badge">ಸೂಚನೆ</span>' +
+          '<span class="sh-title">ಪ್ರತಿಕ್ರಿಯೆ ನೀಡುವ ಮುನ್ನ ಗಮನಿಸಿ</span>' +
+        '</div>' +
+        '<div class="notice-body">' + esc(noticeText) + '</div>' +
+      '</div>'
+    : '';
 
   const sessionsHtml = (fb.sessions || []).map((s, i) => {
     const selected = (d.ratings || {})[String(i)] || '';
@@ -2294,7 +2309,7 @@ function stageFeedback(t){
     if(q.type === 'textarea'){
       control = '<textarea data-fb="' + esc(q.id) + '" rows="4" placeholder="ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ...">' + esc(val || '') + '</textarea>';
     }else{
-      control = '<div class="rating-row">' + (q.options||[]).map((o, j) =>
+      control = '<div class="rating-row">' + (q.options||[]).filter(Boolean).map((o, j) =>
         '<label class="pill"><input type="radio" name="fb_' + esc(q.id) + '" value="' + esc(o) + '"' +
           (val === o ? ' checked' : '') +
           ' data-fbgroup="' + esc(q.id) + '"><span>' + esc(o) + '</span></label>'
@@ -2308,6 +2323,7 @@ function stageFeedback(t){
   }).join('');
 
   return '<div class="stack">' +
+    noticeHtml +
     '<div class="card">' +
       '<div class="section-head">' +
         '<span class="sh-badge">ಭಾಗ-01</span>' +
@@ -2748,7 +2764,7 @@ function blankTrainingDraft(){
     passing:70,
     published:true,
     archived:false,
-    feedback:{ day:'', sessions:[{ heading:'', topic:'', lecturer:'' }], questions:[] },
+    feedback:{ day:'', notice:'', sessions:[{ heading:'', topic:'', lecturer:'' }], questions:[] },
     questions:[{ id:uid('q'), text:'', options:['','','',''], correct:0, marks:1 }]
   };
 }
@@ -2767,7 +2783,7 @@ function draftFromTraining(t){
     passing:Number(t.passing) || 70,
     published: t.published !== false,
     archived: !!t.archived,
-    feedback: deepCopy(t.feedback || { day:'', sessions:[], questions:[] }),
+    feedback: deepCopy(Object.assign({ day:'', notice:'', sessions:[], questions:[] }, t.feedback || {})),
     /* The answer key is not readable from the browser, so an existing
        training opens with "not set" (null) on each question. The admin
        must pick the correct option again to change the key; leaving it
@@ -2798,8 +2814,10 @@ function adminTrainingForm(){
 
   const fbHtml = (d.feedback.questions || []).map((q,i) => {
     const isText = q.type === 'textarea';
+    /* every radio feedback question carries exactly four options */
+    const fbOpts = isText ? [] : [0,1,2,3].map(j => (q.options && q.options[j]) || '');
     const optInputs = isText ? '' :
-      '<div class="grid-2">' + (q.options||[]).map((o,j) =>
+      '<div class="grid-2">' + fbOpts.map((o,j) =>
         '<label class="field"><span>ಆಯ್ಕೆ ' + (j+1) + '</span>' +
           '<input data-bind="feedback.questions.' + i + '.options.' + j + '" value="' + esc(o) + '"></label>'
       ).join('') + '</div>';
@@ -2858,6 +2876,14 @@ function adminTrainingForm(){
     '</div>'
   ).join('') || '<p class="muted small">ಯಾವುದೇ ಮೌಲ್ಯಮಾಪನ ಪ್ರಶ್ನೆಗಳಿಲ್ಲ.</p>';
 
+  const noticeHtml =
+    '<div class="divider"></div>' +
+    '<div class="subhead"><h3>ಪ್ರತಿಕ್ರಿಯೆ ಮುನ್ನ ಸೂಚನೆ</h3>' +
+      '<span class="muted small">ವಿದ್ಯಾರ್ಥಿಗೆ ಪ್ರತಿಕ್ರಿಯೆ ಭಾಗದ ಮೇಲೆ ಕಾಣಿಸುತ್ತದೆ</span></div>' +
+    '<label class="field" style="margin-bottom:0;"><span>ಮುಖ್ಯ ಸೂಚನೆ (Notice)</span>' +
+      '<textarea data-bind="feedback.notice" rows="4" placeholder="ಉದಾ: ಪ್ರತಿಕ್ರಿಯೆ ನೀಡುವ ಮೊದಲು ಎಲ್ಲಾ ಅಧಿವೇಶನಗಳ ಮೌಲ್ಯಮಾಪನ ಮಾಡಿ.">' +
+        esc((d.feedback && d.feedback.notice) || '') + '</textarea></label>';
+
   return '<form data-form="training" class="card" novalidate>' +
     '<div class="card-head">' +
       '<div><h2>' + (d.isNew ? 'ಹೊಸ ತರಬೇತಿ ಸೇರಿಸಿ' : 'ತರಬೇತಿ ಸಂಪಾದಿಸಿ') + '</h2>' +
@@ -2878,6 +2904,7 @@ function adminTrainingForm(){
     '<div class="divider"></div>' +
     '<div class="subhead"><h3>ಅಧಿವೇಶನಗಳು (Session Headings)</h3>' +
       '<button type="button" class="btn btn-ghost btn-sm" data-action="add-session">+ ಅಧಿವೇಶನ ಸೇರಿಸಿ</button></div>' +
+    noticeHtml +
     sessionsHtml +
 
     '<div class="divider"></div>' +
@@ -2932,6 +2959,15 @@ function saveTraining(){
     }
   });
 
+  /* feedback questions: a radio question needs its four options filled */
+  ((d.feedback && d.feedback.questions) || []).forEach((q, i) => {
+    if(q.type === 'textarea') return;
+    const opts = [0,1,2,3].map(j => String((q.options||[])[j] || '').trim());
+    if(opts.some(o => !o)){
+      errors.push('ಪ್ರತಿಕ್ರಿಯೆ ಪ್ರಶ್ನೆ ' + (i+1) + ': ನಾಲ್ಕು ಆಯ್ಕೆಗಳು ಅಗತ್ಯ.');
+    }
+  });
+
   if(errors.length){
     const msg = document.getElementById('adminFormMsg');
     if(msg){
@@ -2964,13 +3000,16 @@ function saveTraining(){
     if(hasKey) answerKey[q.id] = Number(q.correct) || 0;
   });
 
-  const feedback = deepCopy(d.feedback || { day:'', sessions:[], questions:[] });
+  const feedback = deepCopy(d.feedback || { day:'', notice:'', sessions:[], questions:[] });
+  feedback.notice = String(feedback.notice || '').trim();
   feedback.questions = (feedback.questions || []).map(function(q){
+    const isText = q.type === 'textarea';
+    const opts = isText ? [] : [0,1,2,3].map(function(j){ return String((q.options||[])[j] || '').trim(); });
     return {
       id: q.id || uid('f'),
       text: String(q.text||'').trim(),
-      type: q.type === 'textarea' ? 'textarea' : 'radio',
-      options: q.type === 'textarea' ? [] : (q.options || []).map(function(o){ return String(o||'').trim(); }).filter(Boolean)
+      type: isText ? 'textarea' : 'radio',
+      options: opts
     };
   });
 
@@ -2985,6 +3024,7 @@ function saveTraining(){
     institute: d.institute || INSTITUTE,
     passing: passing,
     feedback_day: String(feedback.day || ''),
+    feedback_notice: String(feedback.notice || ''),
     feedback_sessions: feedback.sessions || [],
     feedback_questions: feedback.questions || []
   };
@@ -3008,24 +3048,29 @@ function saveTraining(){
   if(msg){ msg.className = 'form-msg'; msg.innerHTML = ''; }
   toast('ಉಳಿಸಲಾಗುತ್ತಿದೆ…','info');
 
-  sb.from('trainings').upsert(row, { onConflict:'id' })
-    .then(function(res){ if(res.error) throw res.error; })
-    /* replace the paper wholesale — an edit may add, remove or reorder */
-    .then(function(){ return sb.from('training_questions').delete().eq('training_id', trainingId); })
-    .then(function(res){ if(res.error) throw res.error; })
-    .then(function(){
-      if(!questionRows.length) return null;
-      return sb.from('training_questions').insert(questionRows);
-    })
-    .then(function(res){ if(res && res.error) throw res.error; })
-    .then(function(){
-      if(!Object.keys(answerKey).length) return null;
-      return sb.rpc('admin_save_answer_key', {
-        p_training_id: trainingId,
-        p_answer_key: answerKey
-      });
-    })
-    .then(function(res){ if(res && res.error) throw res.error; })
+  /* one write pass: the training row, then the paper, then the answer key */
+  const writeAll = function(){
+    return sb.from('trainings').upsert(row, { onConflict:'id' })
+      .then(function(res){ if(res.error) throw res.error; })
+      /* replace the paper wholesale — an edit may add, remove or reorder */
+      .then(function(){ return sb.from('training_questions').delete().eq('training_id', trainingId); })
+      .then(function(res){ if(res.error) throw res.error; })
+      .then(function(){
+        if(!questionRows.length) return null;
+        return sb.from('training_questions').insert(questionRows);
+      })
+      .then(function(res){ if(res && res.error) throw res.error; })
+      .then(function(){
+        if(!Object.keys(answerKey).length) return null;
+        return sb.rpc('admin_save_answer_key', {
+          p_training_id: trainingId,
+          p_answer_key: answerKey
+        });
+      })
+      .then(function(res){ if(res && res.error) throw res.error; });
+  };
+
+  writeAll()
     .then(function(){
       state.editing = null;
       return reloadPortalData();
@@ -3034,6 +3079,19 @@ function saveTraining(){
       toast(isNew ? 'ಹೊಸ ತರಬೇತಿ ಯಶಸ್ವಿಯಾಗಿ ಸೇರಿಸಲಾಗಿದೆ.' : 'ತರಬೇತಿ ಯಶಸ್ವಿಯಾಗಿ ಸಂಪಾದಿಸಲಾಗಿದೆ.', 'success');
     })
     .catch(function(err){
+      const raw = String((err && (err.message || err.details || err.hint)) || '');
+      /* a project that has not run the feedback_notice migration yet:
+         store everything else rather than losing the whole training */
+      if(Object.prototype.hasOwnProperty.call(row, 'feedback_notice') && raw.indexOf('feedback_notice') > -1){
+        delete row.feedback_notice;
+        toast('ಈ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಸೂಚನೆ ಕಾಲಮ್ ಇಲ್ಲ — ಸೂಚನೆ ಇಲ್ಲದೆ ಉಳಿಸಲಾಗುತ್ತಿದೆ.', 'info');
+        return writeAll()
+          .then(function(){
+            state.editing = null;
+            return reloadPortalData();
+          })
+          .then(function(){ toast('ತರಬೇತಿ ಉಳಿಸಲಾಗಿದೆ (ಸೂಚನೆ ಬಿಟ್ಟು).', 'success'); });
+      }
       console.warn('[training] save failed', err && (err.message || err.code));
       const text = dataErrorMessage(err);
       if(msg){ msg.className = 'form-msg show error'; msg.textContent = text; }
@@ -4440,7 +4498,7 @@ document.addEventListener('click', function(e){
       if(!state.editing) break;
       if(!state.editing.feedback.questions) state.editing.feedback.questions = [];
       state.editing.feedback.questions.push({
-        id: uid('f'), text:'', type:'radio', options:['','']
+        id: uid('f'), text:'', type:'radio', options:['','','','']
       });
       render();
       break;

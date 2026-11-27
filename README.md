@@ -25,7 +25,7 @@ private file storage.
 | table | holds |
 | --- | --- |
 | `profiles` | one row per account: name, KGID, designation, `role` (admin/student), `status` (`approved` on sign-up, `disabled` when an admin revokes access) |
-| `trainings` | a training programme, its feedback questions and publish/archive flags |
+| `trainings` | a training programme, its feedback notice, feedback questions and publish/archive flags |
 | `training_questions` | the assessment paper for a training (no answer key) |
 | `submissions` | one marked paper per student per training |
 | `certificates` | issued certificate register (`serial` = `DTI-BNG-YYYY-NNNN`) |
@@ -144,6 +144,25 @@ security still scopes each student to their own submission and certificate rows.
 Restoring the old behaviour is a one-line change to the trigger
 (`'approved'` → `'pending'` in `handle_new_user`); the gate in the page still
 handles `status = 'rejected'` / `'disabled'`.
+
+## Feedback
+
+The feedback stage is part 1 (session ratings) + part 2 (questions), and the admin
+editor controls both:
+
+* **ಪ್ರತಿಕ್ರಿಯೆ ಮುನ್ನ ಸೂಚನೆ (Notice)** — an optional free-text notice, saved in
+  `trainings.feedback_notice`. When it is set, the student sees it in a highlighted
+  card at the very top of the feedback stage, before the session ratings. Line
+  breaks are kept (`white-space:pre-line`).
+* **Feedback questions** — each one is either a four-option choice (radio) or a
+  free-text answer. A radio question must have all four options filled, and the
+  student is asked for one answer per question before the stage can advance.
+
+`trainings.feedback_notice` was added by
+`supabase/migrations/20261127092431_feedback_notice.sql` (with the same
+column-level grants as the rest of the table). An older project that has not been
+migrated yet still saves trainings: the page retries the write without the notice
+and tells the admin that the notice was not stored.
 
 ## Applying the migrations
 
