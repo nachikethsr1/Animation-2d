@@ -25,7 +25,7 @@ private file storage.
 | table | holds |
 | --- | --- |
 | `profiles` | one row per account: name, KGID, designation, `role` (admin/student), `status` (`approved` on sign-up, `disabled` when an admin revokes access) |
-| `trainings` | a training programme, its feedback notice, feedback questions and publish/archive flags |
+| `trainings` | a training programme: title, start/end dates, feedback notice, ಭಾಗ-1/ಭಾಗ-2 questions, publish flag and the `archived` soft-delete flag |
 | `training_questions` | the assessment paper for a training (no answer key) |
 | `submissions` | one marked paper per student per training |
 | `certificates` | issued certificate register (`serial` = `DTI-BNG-YYYY-NNNN`) |
@@ -145,24 +145,178 @@ Restoring the old behaviour is a one-line change to the trigger
 (`'approved'` → `'pending'` in `handle_new_user`); the gate in the page still
 handles `status = 'rejected'` / `'disabled'`.
 
-## Feedback
+## Training management
 
-The feedback stage is part 1 (session ratings) + part 2 (questions), and the admin
-editor controls both:
+The administrator edits one training at a time in
+**Admin → ತರಬೇತಿ ನಿರ್ವಹಣೆ → ಸಂಪಾದಿಸಿ**. The form now carries only what the
+institute asked for:
 
-* **ಪ್ರತಿಕ್ರಿಯೆ ಮುನ್ನ ಸೂಚನೆ (Notice)** — an optional free-text notice, saved in
-  `trainings.feedback_notice`. When it is set, the student sees it in a highlighted
-  card at the very top of the feedback stage, before the session ratings. Line
-  breaks are kept (`white-space:pre-line`).
-* **Feedback questions** — each one is either a four-option choice (radio) or a
-  free-text answer. A radio question must have all four options filled, and the
-  student is asked for one answer per question before the stage can advance.
+| field | notes |
+| --- | --- |
+| ತರಬೇತಿ ಶೀರ್ಷಿಕೆ (Training Title) | the official name everywhere, including the certificate designer (`Training Name`) |
+| ತರಬೇತಿ ಆರಂಭ ದಿನಾಂಕ / ಅಂತ್ಯ ದಿನಾಂಕ | start and end dates (`trainings.start_date` / `end_date`, ISO) |
+| ಉತ್ತೀರ್ಣ ಶೇಕಡಾವಾರು | unchanged, used by the MCQ marking RPC |
+| ಥೀಮ್ ಬಣ್ಣ | unchanged |
+| ಭಾಗ-1 / ಭಾಗ-2 / MCQ editors | see below |
 
-`trainings.feedback_notice` was added by
-`supabase/migrations/20261127092431_feedback_notice.sql` (with the same
-column-level grants as the rest of the table). An older project that has not been
-migrated yet still saves trainings: the page retries the write without the notice
-and tells the admin that the notice was not stored.
+Training Topic, Training Description, Training Category and the whole session
+management block (Add Session / Session Title / Session Heading / Session
+Content / Session Teachers) were removed from the interface. The old columns
+(`topic`, `description`, `category`, `feedback_sessions`, `feedback_questions`)
+are **not dropped** and their rows are **not rewritten**: the page keeps them in
+the database, still reads them for old records, and never sends them in an
+update. The legacy single `date` column also stays, and is kept in step
+(`start – end`) so older reports and `certificates.training_date` stay readable.
+
+Deleting a training is now a soft delete: it sets `archived = true` (the row,
+its questions, submissions and certificates stay put) and the training appears
+under **ಅಳಿಸಿದ ತರಬೇತಿಗಳು** with *ಮರುಸ್ಥಾಪಿಸಿ* (restore) and *ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಿ*
+(permanent delete). A permanent delete is refused by the database while
+submissions still reference the training, which protects the register.
+
+## Feedback — ಭಾಗ-1 + ಭಾಗ-2
+
+The feedback stage has two Kannada sections, managed independently of the MCQ
+assessment. Both live in the training's own row, so every training has its own
+questionnaire.
+
+**ಭಾಗ-1 — ದಿನದ ಹಿಮ್ಮಾಹಿತಿ.** A list of large CSS question blocks. Each block
+holds, in this order:
+
+1. ದಿನ — a small input inside the block, with the seven Kannada weekdays offered
+   by a `<datalist>`;
+2. ದಿನಾಂಕ — a date input;
+3. three lines of visual spacing;
+4. ಅಧಿವೇಶನ (ಆರಂಭ – ಅಂತ್ಯ) — the session range, e.g. 1–3;
+5. ವಿಷಯ — a wide single-line subject input;
+6. ಮುಖ್ಯ ಪ್ರಶ್ನೆ — a large multi-line question editor;
+7. ಉಪನ್ಯಾಸಕರು — the lecturer's name.
+
+Day, date and session range each carry a **ಒಂದಕ್ಕೆ (Edit for One) /
+ಎಲ್ಲಕ್ಕೂ (Edit for All)** switch. With *Edit for All* typed values are copied to
+every other block (the whole range for sessions); with *Edit for One* only that
+block changes. Subject, main question and lecturer are always edited directly,
+and the switch is not offered for them. Blocks can be added, deleted (soft),
+restored and permanently removed, and the layout reflows automatically.
+
+The participant sees each block as a styled card (day, date, session range,
+subject, question, lecturer) and rates that day with exactly four options, in
+this order: **ಅತ್ಯುತ್ತಮ / ಉತ್ತಮ / ಸಾಧಾರಣ / ಅತೃಪ್ತಿಕರ**. The four options are fixed
+institute-wide (`PART1_RATINGS`), so they are shown read-only in the
+administrator's block editor and are not administered per question. The chosen
+Kannada value is stored in `submissions.feedback.ratings[blockId]` (the map shape
+already used by earlier submissions, so nothing had to change in the database)
+and the administrator sees it in the feedback detail view. Rows saved while the
+form briefly offered English wording (`Excellent`, `Good`, `Average`,
+`Unsatisfied`) are displayed through `PART1_RATING_ALIASES`, so the office reads
+the Kannada label without the stored answer being rewritten; Kannada answers
+collected before this update display unchanged.
+
+**ಭಾಗ-2 — ತರಬೇತಿ ಉಪಯುಕ್ತತೆ ಕುರಿತು ಹಿಮ್ಮಾಹಿತಿ.** The eight institute questions
+are preloaded with exactly the wording and options supplied. Each question has a
+format the administrator can change:
+
+| format | editor | participant |
+| --- | --- | --- |
+| ಆಯ್ಕೆ (choice) | any number of options (2–10), each editable | one choice |
+| ರೇಟಿಂಗ್ (rating) | its own scale, any number of points, editable labels | round rating chips |
+| ವಿವರಣಾತ್ಮಕ (descriptive) | no options at all | a large free-text box |
+
+Questions can be reordered, edited, deleted (soft), restored and permanently
+removed; option counts are per question, never hard-coded. Completing every
+active question (and every ಭಾಗ-1 block) is required before the MCQ stage opens.
+
+**ಪ್ರತಿಕ್ರಿಯೆ ಮುನ್ನ ಸೂಚನೆ (Notice)** — an optional free-text notice, saved in
+`trainings.feedback_notice`, shown in a highlighted card above the feedback.
+
+## Certificate designer
+
+The manual designer (upload a PNG/JPG background, drag labels, set position,
+width, height, font size, colour and alignment, save) is unchanged. Every label
+has its **own** width and **own** height, plus its own font size, so changing one
+label never moves or resizes another. Height is a percentage of the certificate
+height and is optional: leave it empty for the automatic height, or type a value
+/ drag the gold bar under the label. A fixed height crops text that overflows,
+in the designer and on the issued certificate alike. All labels are **always
+bold** — the weight option was removed rather than hidden.
+
+The canvas is a **live preview**: it repaints on every keystroke of position,
+width, height, font size or text, without saving or refreshing, over the
+uploaded background. It starts on realistic sample values (Sample Student /
+Teacher / 123456 / Sample Training with sample dates) and can be switched to any
+real participant and training, in which case the real start and end dates come
+from `trainings.start_date` / `end_date`. The automatic labels are exactly:
+
+1. Student Name — participant profile / submission
+2. Designation — participant profile / submission
+3. KGID Number — participant profile / submission
+4. Training Start Date — `trainings.start_date`
+5. Training End Date — `trainings.end_date`
+6. Training Name — `trainings.title`
+
+Old automatic labels (Training Topic, Training Date, Marks, Total Marks,
+Percentage, Certificate ID, Email, Institute Name) are gone from the picker.
+A saved design is sanitised when it is read: `Training Date` becomes *Training
+Start Date*, `Training Title` becomes *Training Name*, and the remaining
+outdated labels are dropped, so an old design keeps working. Hand-placed static
+text (headings such as "This is to certify that") is kept — it carries no data.
+The canvas previews either the sample values or a real participant and training,
+both switchable from the panel, which makes checking label positions
+straightforward.
+
+**A label type may be placed any number of times.** `+ Student Name` adds a new
+box on every click; each box is an element of its own with a unique id
+(`cd_…`), so three Student Name boxes can sit on three lines of the scan, each
+with its own position, width, height and font size, selected, dragged, resized
+and deleted independently. Nothing identifies a box by its label type, and
+saving/reopening keeps every instance exactly as placed — the only ids that are
+ever regenerated are genuinely missing or duplicated ones.
+
+**The saved design is the single source of truth for the certificate.** The old
+"use custom certificate for students" switch is gone: whenever the saved design
+has fields, every certificate — the designer canvas, the student's on-screen
+certificate and the printed/downloaded page — is drawn by `certFieldStyle()`
+from that design over the uploaded background, with the participant's real name,
+designation and KGID and the training's real name and dates. The built-in layout
+is only used while nothing has been saved at all. If the design exists but its
+background cannot be loaded, the student sees a clear *loading* or
+*background missing / could not be loaded* card with a retry button instead of a
+substitute certificate, and the download button is not offered until the real
+certificate is on screen.
+
+The sign-in screen and the administrator's Settings page print a **Build** line
+(`APP_BUILD`). It is the quickest way to tell whether a browser — or a hosted
+copy of the file — is really running the latest build after a change.
+
+**One date per box.** The old free-text `date` column held the whole period
+("23-11-2026 – 25-11-2026"), and rows whose `start_date` was never backfilled
+handed that whole string to both date labels, so the Start and the End box each
+printed the period. Training dates are now always split (`splitDateValue()` /
+`trainingPeriod()`): the certificate — designer preview, student view and print
+— plus the results, register and admin editor show only the start date in the
+Start box and only the end date in the End box, whether the period came from
+`date`, from a range stored in `start_date`, or from two normal columns.
+`supabase/migrations/20261127130000_training_period_backfill.sql` repairs the
+stored columns for such rows as well; the page is correct even without it.
+
+`trainings.start_date`, `end_date`, `feedback_version`, `feedback_part1` and
+`feedback_part2` are added by
+`supabase/migrations/20261127120000_training_system_feedback_v2.sql`. That
+migration also backfills the two dates from the legacy free-text `date`. A
+project that has not run it yet still saves: the page retries the write in the
+legacy shape (the two sections go into `feedback_sessions` / `feedback_questions`,
+which are read back by shape), so no work is lost.
+
+## Participant details and Designation
+
+The details stage and the first-sign-in form both use **Designation**
+(`profiles.designation`); the old "Position" wording is gone. The details stage
+asks for e-mail, name, KGID and designation, and the designation is written back
+to the participant's own profile through the one column the student role may
+update. `submit_assessment` already copies `profiles.designation` into
+`submissions.designation` when the paper is marked — that column was simply not
+being displayed before — so the certificate always has the designation without
+any change to the marking RPC.
 
 ## Applying the migrations
 
