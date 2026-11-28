@@ -284,6 +284,10 @@ background cannot be loaded, the student sees a clear *loading* or
 substitute certificate, and the download button is not offered until the real
 certificate is on screen.
 
+The sign-in screen and the administrator's Settings page print a **Build** line
+(`APP_BUILD`). It is the quickest way to tell whether a browser — or a hosted
+copy of the file — is really running the latest build after a change.
+
 **One date per box.** The old free-text `date` column held the whole period
 ("23-11-2026 – 25-11-2026"), and rows whose `start_date` was never backfilled
 handed that whole string to both date labels, so the Start and the End box each

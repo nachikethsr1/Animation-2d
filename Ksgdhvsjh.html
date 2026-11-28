@@ -166,6 +166,7 @@ input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink);}
    6. LOGIN PAGE
    ============================================================ */
 .login-page{min-height:100vh;display:grid;grid-template-columns:1.02fr .98fr;}
+.login-build{margin-top:14px;text-align:center;font-size:11px;color:#8A93A0;letter-spacing:.02em;}
 .login-brand{
   position:relative;overflow:hidden;color:#fff;padding:56px 44px;
   display:flex;align-items:center;justify-content:center;
@@ -1044,14 +1045,20 @@ function splitDateValue(v){
 }
 
 /* The two dates a certificate, result or register should print — always one
-   date per field, never the combined period in both. */
+   date per field, never the combined period in both.
+   Every source is read in order (start_date, end_date, the legacy `date`),
+   and a value that holds a period contributes its two dates. The first date
+   found is the start, the second is the end, so it does not matter which
+   column the old range ended up in. */
 function trainingPeriod(t){
-  const startRaw = splitDateValue(t && t.startDate);
-  const endRaw   = splitDateValue(t && t.endDate);
-  const legacy   = splitDateValue(t && t.date);
-  const start = displayDate(startRaw.start) || displayDate(legacy.start);
-  let end = displayDate(endRaw.start) || displayDate(startRaw.end) || displayDate(legacy.end);
-  if(!end) end = start;             /* a one-day training */
+  const found = [];
+  [t && t.startDate, t && t.endDate, t && t.date].forEach(function(v){
+    const p = splitDateValue(v);
+    if(p.start) found.push(p.start);
+    if(p.end) found.push(p.end);
+  });
+  const start = displayDate(found[0]) || '';
+  const end = displayDate(found[1]) || start;   /* a one-day training */
   return { start: start, end: end };
 }
 
@@ -1147,6 +1154,9 @@ const STORE_KEY   = 'dti_bng_v1';
 const DRAFT_PREFIX= 'dti_draft_';
 const INSTITUTE   = 'ಜಿಲ್ಲಾ ತರಬೇತಿ ಸಂಸ್ಥೆ, ಬೆಂಗಳೂರು ನಗರ';
 const INSTITUTE_EN= 'District Training Institute, Bengaluru City';
+/* Printed on the sign-in screen and in Settings so it is obvious which copy
+   of this file a browser (or a hosted deployment) is actually running. */
+const APP_BUILD = '2026-11-28 · single date per certificate box';
 /* Every ಭಾಗ-1 question is answered with exactly these four options, in this
    order. They are fixed by the institute, so they are not administered.
    The stored value is the Kannada label itself, exactly like the ratings
@@ -1920,11 +1930,14 @@ function trainingFromRow(row, questions){
   /* `date` used to hold the whole period, so it is split before it is used
      as a single start date. A range sitting in start_date/end_date (older
      backfills) is split the same way. */
-  const startRaw = splitDateValue(row.start_date);
-  const endRaw   = splitDateValue(row.end_date);
-  const legacyRaw = splitDateValue(row.date);
-  const startDate = toIsoDate(str(startRaw.start) || legacyRaw.start);
-  const endDate   = toIsoDate(str(endRaw.start) || startRaw.end || legacyRaw.end) || startDate;
+  const dateTokens = [];
+  [row.start_date, row.end_date, row.date].forEach(function(v){
+    const p = splitDateValue(v);
+    if(p.start) dateTokens.push(p.start);
+    if(p.end) dateTokens.push(p.end);
+  });
+  const startDate = toIsoDate(dateTokens[0] || '');
+  const endDate   = toIsoDate(dateTokens[1] || '') || startDate;
   /* feedback_version = 1 marks a training saved with the new ಭಾಗ-1/ಭಾಗ-2
      layout, so an intentionally empty section stays empty instead of
      falling back to the legacy columns or the default paper. */
@@ -2493,6 +2506,7 @@ function loginPage(title, sub, inner, footNote){
         (sub ? '<p class="sub">' + sub + '</p>' : '') +
         inner +
         (footNote ? '<p class="login-note">' + footNote + '</p>' : '') +
+        '<div class="login-build">Build ' + esc(APP_BUILD) + '</div>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -4314,6 +4328,7 @@ function adminSettings(){
       '<div><b>ಸಂಸ್ಥೆ:</b> ' + esc(INSTITUTE) + '</div>' +
       '<div><b>English:</b> ' + esc(INSTITUTE_EN) + '</div>' +
       '<div><b>ನಿರ್ವಾಹಕರು:</b> Savita K. H. — ಉಪ ಪ್ರಾಂಶುಪಾಲರು / Vice Principal</div>' +
+      '<div><b>Build:</b> ' + esc(APP_BUILD) + '</div>' +
     '</div>' +
   '</div>' +
   '<div class="card" style="margin-bottom:18px;">' +
@@ -4911,10 +4926,19 @@ function removeCertBackground(){
 }
 
 /* ---- Student custom certificate renderer ---- */
+/* A last guard before anything is printed: a start label only ever gets the
+   first date of what it is given, an end label only ever the last, so a range
+   can never appear in both boxes again — whatever produced the value. */
+function oneDate(v, which){
+  const p = splitDateValue(v);
+  if(which === 'last') return displayDate(p.end) || displayDate(p.start);
+  return displayDate(p.start);
+}
+
 function renderCustomCertificate(t, sub, certNo, design, bg){
   const period = trainingPeriod(t);
-  const start = period.start;
-  const end   = period.end;
+  const start = oneDate(period.start, 'first');
+  const end   = oneDate(period.end, 'last');
   const sample = {
     studentName:   (sub.details && sub.details.name) || sub.userName || '',
     designation:   designationFor(sub),
