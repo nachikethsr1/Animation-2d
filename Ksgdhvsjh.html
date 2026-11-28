@@ -1028,6 +1028,33 @@ function toIsoDate(v){
   if(m) return m[3] + '-' + m[2] + '-' + m[1];
   return s;
 }
+/* The old free-text `date` column held the whole period
+   ("23-11-2026 – 25-11-2026"). Whenever such a value ends up where a single
+   date belongs — the legacy fallback, or a row whose start_date/end_date was
+   never backfilled — this splits it, so the Start box shows only the start
+   and the End box only the end. A plain date comes back as { start, end:'' }. */
+function splitDateValue(v){
+  const s = str(v).trim();
+  if(!s) return { start:'', end:'' };
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return { start:s, end:'' };
+  const tokens = s.match(/\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[-\/.]\d{1,2}[-\/.]\d{4}/g) || [];
+  if(tokens.length >= 2) return { start:tokens[0], end:tokens[1] };
+  if(tokens.length === 1) return { start:tokens[0], end:'' };
+  return { start:s, end:'' };
+}
+
+/* The two dates a certificate, result or register should print — always one
+   date per field, never the combined period in both. */
+function trainingPeriod(t){
+  const startRaw = splitDateValue(t && t.startDate);
+  const endRaw   = splitDateValue(t && t.endDate);
+  const legacy   = splitDateValue(t && t.date);
+  const start = displayDate(startRaw.start) || displayDate(legacy.start);
+  let end = displayDate(endRaw.start) || displayDate(startRaw.end) || displayDate(legacy.end);
+  if(!end) end = start;             /* a one-day training */
+  return { start: start, end: end };
+}
+
 /* "01-12-2026 – 03-12-2026" (or a single date when they are the same) */
 function dateRange(start, end){
   const a = displayDate(start), b = displayDate(end);
@@ -1890,8 +1917,14 @@ function part2Active(t){
 function trainingFromRow(row, questions){
   const legacySessions  = Array.isArray(row.feedback_sessions)  ? row.feedback_sessions  : [];
   const legacyQuestions = Array.isArray(row.feedback_questions) ? row.feedback_questions : [];
-  const startDate = toIsoDate(str(row.start_date) || str(row.date));
-  const endDate   = toIsoDate(str(row.end_date)) || startDate;
+  /* `date` used to hold the whole period, so it is split before it is used
+     as a single start date. A range sitting in start_date/end_date (older
+     backfills) is split the same way. */
+  const startRaw = splitDateValue(row.start_date);
+  const endRaw   = splitDateValue(row.end_date);
+  const legacyRaw = splitDateValue(row.date);
+  const startDate = toIsoDate(str(startRaw.start) || legacyRaw.start);
+  const endDate   = toIsoDate(str(endRaw.start) || startRaw.end || legacyRaw.end) || startDate;
   /* feedback_version = 1 marks a training saved with the new ಭಾಗ-1/ಭಾಗ-2
      layout, so an intentionally empty section stays empty instead of
      falling back to the legacy columns or the default paper. */
@@ -2681,8 +2714,8 @@ function viewStudentDashboard(u, subs, certs, latest){
         '</div>' +
         '<div class="tc-title">' + esc(t.title) + '</div>' +
         '<div class="tc-meta">' +
-          '<div><div class="m-label">ತರಬೇತಿ ಆರಂಭ</div><div class="m-value">' + esc(displayDate(t.startDate) || '—') + '</div></div>' +
-          '<div><div class="m-label">ತರಬೇತಿ ಅಂತ್ಯ</div><div class="m-value">' + esc(displayDate(t.endDate) || '—') + '</div></div>' +
+          '<div><div class="m-label">ತರಬೇತಿ ಆರಂಭ</div><div class="m-value">' + esc(trainingPeriod(t).start || '—') + '</div></div>' +
+          '<div><div class="m-label">ತರಬೇತಿ ಅಂತ್ಯ</div><div class="m-value">' + esc(trainingPeriod(t).end || '—') + '</div></div>' +
           '<div><div class="m-label">ಸಂಸ್ಥೆ</div><div class="m-value">' + esc(t.institute || INSTITUTE) + '</div></div>' +
           '<div><div class="m-label">ಪ್ರಶ್ನೆಗಳು</div><div class="m-value">' + t.questions.length + ' MCQ</div></div>' +
           '<div><div class="m-label">ಉತ್ತೀರ್ಣ ಮಿತಿ</div><div class="m-value">' + (t.passing || 70) + '%</div></div>' +
@@ -2897,8 +2930,8 @@ function stageDetails(t){
       '<div class="field"><span>ತರಬೇತಿ ವಿವರ</span>' +
         '<div class="card-soft" style="font-size:13.5px;line-height:1.8;">' +
           '<div><b>ತರಬೇತಿ:</b> ' + esc(t.title) + '</div>' +
-          '<div><b>ಆರಂಭ:</b> ' + esc(displayDate(t.startDate) || '—') + '</div>' +
-          '<div><b>ಅಂತ್ಯ:</b> ' + esc(displayDate(t.endDate) || '—') + '</div>' +
+          '<div><b>ಆರಂಭ:</b> ' + esc(trainingPeriod(t).start || '—') + '</div>' +
+          '<div><b>ಅಂತ್ಯ:</b> ' + esc(trainingPeriod(t).end || '—') + '</div>' +
           '<div><b>ಸಂಸ್ಥೆ:</b> ' + esc(t.institute || INSTITUTE) + '</div>' +
         '</div>' +
       '</div>' +
@@ -3231,8 +3264,9 @@ function defaultCertificateHTML(t, sub, certNo){
   const name = sub.details && sub.details.name ? sub.details.name : sub.userName;
   const desig = designationFor(sub);
   const kgid = (sub.details && sub.details.kgid) || sub.kgid || '';
-  const start = displayDate(t.startDate) || displayDate(t.date);
-  const end = displayDate(t.endDate) || start;
+  const period = trainingPeriod(t);
+  const start = period.start;
+  const end = period.end;
   const r = sub.result;
   return '<div class="cert" id="cert">' +
     '<div class="cert-corner tl"></div><div class="cert-corner tr"></div>' +
@@ -4446,8 +4480,9 @@ function certSampleData(){
     ? null
     : DB.trainings.find(function(x){ return x.id === certPreview.trainingId; }) || null;
 
-  const start = t ? (displayDate(t.startDate) || displayDate(t.date)) : CERT_SAMPLE_VALUES.trainingStart;
-  const end   = t ? (displayDate(t.endDate) || start) : CERT_SAMPLE_VALUES.trainingEnd;
+  const period = t ? trainingPeriod(t) : null;
+  const start = period ? period.start : CERT_SAMPLE_VALUES.trainingStart;
+  const end   = period ? period.end   : CERT_SAMPLE_VALUES.trainingEnd;
   return {
     studentName:   u ? (u.name || '') : CERT_SAMPLE_VALUES.studentName,
     designation:   u ? (u.designation || '') : CERT_SAMPLE_VALUES.designation,
@@ -4877,8 +4912,9 @@ function removeCertBackground(){
 
 /* ---- Student custom certificate renderer ---- */
 function renderCustomCertificate(t, sub, certNo, design, bg){
-  const start = displayDate(t.startDate) || displayDate(t.date);
-  const end   = displayDate(t.endDate) || start;
+  const period = trainingPeriod(t);
+  const start = period.start;
+  const end   = period.end;
   const sample = {
     studentName:   (sub.details && sub.details.name) || sub.userName || '',
     designation:   designationFor(sub),
@@ -5704,8 +5740,8 @@ document.addEventListener('click', function(e){
       openModal(
         '<h3>' + esc(t.title) + '</h3>' +
         '<div class="card-soft small" style="line-height:2;">' +
-          '<div><b>ತರಬೇತಿ ಆರಂಭ:</b> ' + esc(displayDate(t.startDate) || '—') + '</div>' +
-          '<div><b>ತರಬೇತಿ ಅಂತ್ಯ:</b> ' + esc(displayDate(t.endDate) || '—') + '</div>' +
+          '<div><b>ತರಬೇತಿ ಆರಂಭ:</b> ' + esc(trainingPeriod(t).start || '—') + '</div>' +
+          '<div><b>ತರಬೇತಿ ಅಂತ್ಯ:</b> ' + esc(trainingPeriod(t).end || '—') + '</div>' +
           '<div><b>ಸಂಸ್ಥೆ:</b> ' + esc(t.institute || INSTITUTE) + '</div>' +
           '<div><b>MCQ ಪ್ರಶ್ನೆಗಳು:</b> ' + t.questions.length + ' &nbsp;·&nbsp; <b>ಉತ್ತೀರ್ಣ ಮಿತಿ:</b> ' + (t.passing||70) + '%</div>' +
           '<div><b>ಭಾಗ-1 ಪ್ರಶ್ನೆಗಳು:</b> ' + p1c + ' &nbsp;·&nbsp; <b>ಭಾಗ-2 ಪ್ರಶ್ನೆಗಳು:</b> ' + p2c + '</div>' +

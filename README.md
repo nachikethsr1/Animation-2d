@@ -284,6 +284,17 @@ background cannot be loaded, the student sees a clear *loading* or
 substitute certificate, and the download button is not offered until the real
 certificate is on screen.
 
+**One date per box.** The old free-text `date` column held the whole period
+("23-11-2026 – 25-11-2026"), and rows whose `start_date` was never backfilled
+handed that whole string to both date labels, so the Start and the End box each
+printed the period. Training dates are now always split (`splitDateValue()` /
+`trainingPeriod()`): the certificate — designer preview, student view and print
+— plus the results, register and admin editor show only the start date in the
+Start box and only the end date in the End box, whether the period came from
+`date`, from a range stored in `start_date`, or from two normal columns.
+`supabase/migrations/20261127130000_training_period_backfill.sql` repairs the
+stored columns for such rows as well; the page is correct even without it.
+
 `trainings.start_date`, `end_date`, `feedback_version`, `feedback_part1` and
 `feedback_part2` are added by
 `supabase/migrations/20261127120000_training_system_feedback_v2.sql`. That
